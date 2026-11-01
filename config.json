@@ -12,7 +12,10 @@
     "longest_run_hours": 6.7,
     "max_hr": 186,
     "from_date": "2024-04-01",
-    "to_date": "2025-12-29"
+    "to_date": "2025-12-29",
+    "peak_4wk_minutes": 490,
+    "typical_week_minutes": 416,
+    "longest_run_minutes": 403
   },
   "last_race": {
     "date": "2026-10-31",

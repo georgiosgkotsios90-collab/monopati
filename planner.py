@@ -80,6 +80,7 @@ def weekly_history(acts: list[dict], today: date, weeks: int = 8) -> list[dict]:
         out.append({
             "week_start": start.isoformat(),
             "km": round(sum(a["km"] for a in items), 1),
+            "minutes": int(round(sum(a["minutes"] for a in items))),
             "gain": int(sum(a["gain"] for a in items)),
             "runs": len(items),
         })
@@ -90,6 +91,7 @@ def build_profile(acts: list[dict], today: date) -> dict:
     hist = weekly_history(acts, today, 8)
     full = hist[1:5]  # οι τελευταίες 4 ολοκληρωμένες εβδομάδες
     km = statistics.mean(w["km"] for w in full)
+    minutes = statistics.mean(w["minutes"] for w in full)
     gain = statistics.mean(w["gain"] for w in full)
     recent = [a for a in acts if is_run(a) and to_date(a["date"]) >= today - timedelta(days=56)]
     paces = [a["minutes"] / effort(a["km"], a["gain"]) for a in recent if a["minutes"] > 0]
@@ -97,6 +99,7 @@ def build_profile(acts: list[dict], today: date) -> dict:
     pace = statistics.median(paces) if paces else DEFAULT_PACE
     return {
         "base_km": round(km, 1),
+        "base_minutes": int(round(minutes)),
         "base_gain": int(gain),
         "pace": round(pace, 2),
         "longest_km": round(max((a["km"] for a in recent), default=0.0), 1),
@@ -257,6 +260,9 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     if hist.get("longest_run_km"):
         long_max = max(LONG_RUN_MAX_KM, min(38.0, float(hist["longest_run_km"]) * 0.7))
 
+    peak_min = float(hist.get("peak_4wk_minutes") or 0) * 1.05
+    long_max_min = min(300.0, float(hist.get("longest_run_minutes") or 0) * 0.7)
+
     km_level = min(peak_km, max(profile["base_km"], MIN_BASE_KM))
     gain_level = min(peak_gain, max(profile["base_gain"], km_level * 12))
     base_ratio = gain_level / km_level
@@ -318,6 +324,12 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 label = "Ειδική προετοιμασία" if (left is not None and left <= 8) else "Ανάπτυξη"
                 wk_km, wk_gain = km_level, gain_level
 
+        # Ταβάνι σε χρόνο: ό,τι ώρες την εβδομάδα έχεις ήδη αντέξει (με 5% περιθώριο).
+        if peak_min:
+            est = effort(wk_km, wk_gain) * pace
+            if est > peak_min:
+                wk_km, wk_gain = wk_km * peak_min / est, wk_gain * peak_min / est
+
         days = []
         for dow in range(7):
             d = wk + timedelta(days=dow)
@@ -340,6 +352,9 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 km, gain = _r5(wk_km * fk), _r10(wk_gain * fg)
                 if kind == "long":
                     km = min(km, long_max)
+                    est = effort(km, gain) * pace
+                    if long_max_min and est > long_max_min:
+                        km, gain = _r5(km * long_max_min / est), _r10(gain * long_max_min / est)
             else:
                 kind = REST_DAYS.get(dow, "rest")
 
@@ -388,7 +403,8 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
 
         weeks.append({
             "week_start": wk.isoformat(), "label": label, "mode": mode, "weeks_left": left,
-            "km": round(sum(x["km"] for x in days), 1), "gain": int(sum(x["gain"] for x in days)),
+            "km": round(sum(x["km"] for x in days), 1),
+            "minutes": int(sum(x["minutes"] for x in days if x["km"] > 0)), "gain": int(sum(x["gain"] for x in days)),
             "days": days,
         })
     return weeks

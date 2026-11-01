@@ -88,7 +88,7 @@ def morning_message(plan: list[dict], today) -> tuple[str, str] | None:
                     return f"Σήμερα: {d['title']}", d["desc"]
                 h, m = divmod(d["minutes"], 60)
                 dur = f"{h}ω {m:02d}λ" if h else f"{m} λεπτά"
-                return f"Σήμερα: {d['title']}", f"{d['km']:g} km · +{d['gain']} m · περίπου {dur}"
+                return f"Σήμερα: {d['title']}", f"{dur} · +{d['gain']} m"
     return None
 
 
@@ -138,7 +138,7 @@ def main() -> int:
             "race": race,
             "status": status,
             "wellness": wellness,
-            "profile": {k: profile[k] for k in ("base_km", "base_gain", "pace", "longest_km", "has_data")},
+            "profile": {k: profile[k] for k in ("base_km", "base_minutes", "base_gain", "pace", "longest_km", "has_data")},
             "history": list(reversed(profile["weeks"])),  # από την παλιότερη προς τη νεότερη
             "recent": runs[:10],
             "plan": plan,

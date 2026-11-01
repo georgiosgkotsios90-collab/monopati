@@ -165,7 +165,7 @@ function structure(day) {
   return `<div class="struct">${stepChart(day.steps)}<ol class="steps">${day.steps.map(stepLi).join('')}</ol></div>`;
 }
 
-const doneText = (d) => `Έγινε: ${km(d.km)} km, +${mt(d.gain)} m, ${dur(d.minutes)}`;
+const doneText = (d) => `Έγινε: ${dur(d.minutes)}, +${mt(d.gain)} m`;
 
 // Η εβδομάδα σαν κορφογραμμή: ύψος = θετική υψομετρική, πλάτος = απόσταση.
 function ridge(week, today, animate) {
@@ -177,7 +177,7 @@ function ridge(week, today, animate) {
     const isToday = d.date === today;
     if (d.km > 0) {
       const h = 14 + (d.gain / maxG) * 74;
-      const hw = 22 + Math.min(26, d.km * 1.3);
+      const hw = 22 + Math.min(26, d.minutes / 7);
       const missed = d.date < today && !d.done && d.kind !== 'race';
       const cls = ['peak', d.done ? 'done' : '', missed ? 'missed' : '', isToday ? 'today' : ''].join(' ').trim();
       peaks += `<path class="${cls}" style="--i:${i}" d="M${cx - hw},${base} Q${cx - hw * 0.35},${base} ${cx},${base - h} Q${cx + hw * 0.35},${base} ${cx + hw},${base}Z"/>`;
@@ -185,7 +185,7 @@ function ridge(week, today, animate) {
     if (isToday) labels += `<rect class="pill" x="${cx - 32}" y="118" width="64" height="30" rx="15"/>`;
     labels += `<text class="lbl${isToday ? ' is-today' : ''}" x="${cx}" y="140" text-anchor="middle">${esc(d.dow.slice(0, 3))}</text>`;
   });
-  const summary = week.days.filter((d) => d.km > 0).map((d) => `${d.dow} ${km(d.km)} χλμ`).join(', ');
+  const summary = week.days.filter((d) => d.km > 0).map((d) => `${d.dow} ${dur(d.minutes)}`).join(', ');
   return `<svg class="ridge${animate ? ' play' : ''}" viewBox="0 0 ${W} 156" role="img" aria-label="Η εβδομάδα: ${esc(summary)}">
     <line class="ground" x1="0" x2="${W}" y1="${base}" y2="${base}"/>${peaks}${labels}</svg>`;
 }
@@ -208,7 +208,7 @@ function viewToday() {
 
   html += `<section><p class="when">${esc(longDate(today))}</p><h2>${esc(day.title)}</h2>`;
   if (day.km > 0) {
-    html += `<p class="figures"><span><b>${km(day.km)}</b> km</span><span><b>+${mt(day.gain)}</b> m</span><span><b>${dur(day.minutes)}</b></span></p>`;
+    html += `<p class="figures"><span><b>${dur(day.minutes)}</b></span><span><b>+${mt(day.gain)}</b> m</span></p>`;
   } else if (day.minutes > 0) {
     html += `<p class="figures"><span><b>${dur(day.minutes)}</b></span></p>`;
   } else {
@@ -221,7 +221,7 @@ function viewToday() {
   html += '</section>';
 
   html += `<section class="week-now"><h3>Η εβδομάδα σου</h3>
-    <p class="meta">${esc(week.label)}: ${km(week.km)} km, +${mt(week.gain)} m</p>${ridge(week, today, !played)}</section>`;
+    <p class="meta">${esc(week.label)}: ${dur(week.minutes || 0)}, +${mt(week.gain)} m</p>${ridge(week, today, !played)}</section>`;
   played = true;
 
   const w = data.wellness || {};
@@ -248,23 +248,22 @@ function viewPlan() {
     const isCur = cur && w.week_start === cur.week_start;
     const days = w.days.map((d) => {
       const st = dayStatus(d, today);
-      const nums = d.km > 0 ? `${km(d.km)} km, +${mt(d.gain)} m` : d.minutes > 0 ? dur(d.minutes) : '';
+      const nums = d.km > 0 ? `${dur(d.minutes)}, +${mt(d.gain)} m` : d.minutes > 0 ? dur(d.minutes) : '';
       return `<details class="day ${st.cls}"><summary>
           <span class="d">${esc(d.dow.slice(0, 3))}</span><span class="t">${esc(d.title)}</span><span class="n">${nums}</span>
           ${st.text ? `<span class="s">${st.text}</span>` : ''}
         </summary><div class="body"><p>${esc(d.desc)}</p>${structure(d)}
-        ${d.km > 0 ? `<p class="muted">Περίπου ${dur(d.minutes)}</p>` : ''}
         ${d.done ? `<p class="done-note">${esc(doneText(d.done))}</p>` : ''}</div></details>`;
     }).join('');
     return `<details class="week${isCur ? ' current' : ''}"${isCur ? ' open' : ''}>
-      <summary><span class="wk">Εβδομάδα ${esc(shortDate(w.week_start))}</span><span class="wt">${km(w.km)} km</span>
+      <summary><span class="wk">Εβδομάδα ${esc(shortDate(w.week_start))}</span><span class="wt">${dur(w.minutes || 0)}</span>
       <span class="wl">${esc(w.label)}</span><span class="wt">+${mt(w.gain)} m</span></summary>
       <div class="days">${days}</div></details>`;
   }).join('');
   return `<header class="top page-title"><h1>Πρόγραμμα</h1></header>${weeks}`;
 }
 
-function barChart(items, key, title) {
+function barChart(items, key, title, fmt = mt) {
   const W = 700, H = 200, top = 24, bottom = 44, plotH = H - top - bottom;
   const actual = (it) => (it.future ? 0 : it[key]);
   const planned = (it) => (it.plan ? it.plan[key] : 0);
@@ -278,7 +277,7 @@ function barChart(items, key, title) {
     if (p > 0 && (it.future || it.current)) bars += `<rect class="plan" x="${x}" y="${y(p)}" width="${bw}" height="${plotH * (p / max)}"/>`;
     if (a > 0) bars += `<rect class="act" x="${x}" y="${y(a)}" width="${bw}" height="${plotH * (a / max)}"/>`;
     const shown = it.future || it.current ? p || a : a;
-    if (shown > 0) texts += `<text class="val" x="${cx}" y="${y(Math.max(a, p)) - 5}">${mt(shown)}</text>`;
+    if (shown > 0) texts += `<text class="val" x="${cx}" y="${y(Math.max(a, p)) - 5}">${fmt(shown)}</text>`;
     if (i % 2 === 0 || it.current) texts += `<text class="lbl" x="${cx}" y="${H - 18}">${esc(shortDate(it.start))}</text>`;
     if (it.current) texts += `<rect class="pill" x="${cx - 24}" y="${H - 10}" width="48" height="5" rx="2"/>`;
   });
@@ -290,20 +289,20 @@ function barChart(items, key, title) {
 function viewProgress() {
   const hist = data.history.slice(-6);
   const curStart = hist[hist.length - 1].week_start;
-  const byStart = Object.fromEntries(data.plan.map((w) => [w.week_start, w]));
-  const items = hist.map((h) => ({ start: h.week_start, km: h.km, gain: h.gain, plan: byStart[h.week_start], current: h.week_start === curStart }))
-    .concat(data.plan.filter((w) => w.week_start > curStart).slice(0, 6).map((w) => ({ start: w.week_start, plan: w, future: true })));
+  const byStart = Object.fromEntries(data.plan.map((w) => [w.week_start, { hours: (w.minutes || 0) / 60, gain: w.gain }]));
+  const items = hist.map((h) => ({ start: h.week_start, hours: (h.minutes || 0) / 60, gain: h.gain, plan: byStart[h.week_start], current: h.week_start === curStart }))
+    .concat(data.plan.filter((w) => w.week_start > curStart).slice(0, 6).map((w) => ({ start: w.week_start, plan: byStart[w.week_start], future: true })));
 
   const p = data.profile || {};
   let html = `<header class="top page-title"><h1>Πρόοδος</h1>
-    <p class="sub">Μέσος όρος 4 εβδομάδων: ${km(p.base_km || 0)} km, +${mt(p.base_gain || 0)} m</p></header>`;
-  html += barChart(items, 'km', 'Χιλιόμετρα ανά εβδομάδα');
+    <p class="sub">Μέσος όρος 4 εβδομάδων: ${dur(p.base_minutes || 0)}, +${mt(p.base_gain || 0)} m</p></header>`;
+  html += barChart(items, 'hours', 'Ώρες τρεξίματος ανά εβδομάδα', (v) => nf1.format(v));
   html += barChart(items, 'gain', 'Θετική υψομετρική ανά εβδομάδα (μέτρα)');
   html += '<p class="legend">Συμπαγείς στήλες: όσα έτρεξες. Διακεκομμένες: το πρόγραμμα.</p>';
 
   const recent = (data.recent || []).map((r) => `<li><span class="dt">${esc(shortDate(r.date))}</span>
     <span class="nm">${esc(r.name || 'Τρέξιμο')}</span>
-    <span class="nu">${km(r.km)} km, +${mt(r.gain)} m${r.avg_hr ? `, ${r.avg_hr} bpm` : ''}</span></li>`).join('');
+    <span class="nu">${dur(r.minutes)}, +${mt(r.gain)} m${r.avg_hr ? `, ${r.avg_hr} bpm` : ''}</span></li>`).join('');
   html += `<section class="recent"><h3>Τελευταία τρεξίματα</h3>${recent ? `<ul>${recent}</ul>` : '<p class="muted">Δεν βρέθηκαν τρεξίματα.</p>'}</section>`;
 
   const upd = new Date(data.generated_at).toLocaleString('el-GR', { dateStyle: 'long', timeStyle: 'short' });
