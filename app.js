@@ -134,6 +134,37 @@ function dayStatus(day, today) {
   return { cls: '', text: '' };
 }
 
+// Δομή προπόνησης όπως στο TrainingPeaks: γράφημα και λίστα βημάτων με διάρκεια, bpm και ζώνη.
+const fmtSec = (s) => (s < 60 ? `${s} δευτ.` : s % 60 === 0 ? `${s / 60} λ` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} λ`);
+
+function stepLi(s) {
+  if (s.repeat) return `<li class="rep"><b>Επανάληψη ${s.repeat} φορές</b><ol>${s.steps.map(stepLi).join('')}</ol></li>`;
+  const line = s.hr ? `${fmtSec(s.sec)} @ ${s.hr[0]}–${s.hr[1]} bpm` : fmtSec(s.sec);
+  const sub = s.zone || s.note || '';
+  return `<li><b>${esc(s.name)}</b><span>${esc(line)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</li>`;
+}
+
+const flatSteps = (steps) => steps.flatMap((s) => (s.repeat ? Array.from({ length: s.repeat }, () => flatSteps(s.steps)).flat() : [s]));
+
+function stepChart(steps) {
+  const bars = flatSteps(steps);
+  const total = bars.reduce((a, b) => a + b.sec, 0) || 1;
+  const W = 700, H = 80, gap = 1.5;
+  let x = 0, out = '';
+  for (const b of bars) {
+    const w = Math.max(2, (b.sec / total) * W - gap);
+    const h = 10 + ((Math.min(1.2, Math.max(0.5, b.lvl)) - 0.5) / 0.7) * (H - 14);
+    out += `<rect class="${b.lvl >= 0.95 ? 'hard' : ''}" x="${x.toFixed(1)}" y="${(H - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"/>`;
+    x += (b.sec / total) * W;
+  }
+  return `<svg class="sgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Δομή προπόνησης: ύψος ανάλογο της έντασης, πλάτος της διάρκειας">${out}</svg>`;
+}
+
+function structure(day) {
+  if (!day.steps || !day.steps.length) return '';
+  return `<div class="struct">${stepChart(day.steps)}<ol class="steps">${day.steps.map(stepLi).join('')}</ol></div>`;
+}
+
 const doneText = (d) => `Έγινε: ${km(d.km)} km, +${mt(d.gain)} m, ${dur(d.minutes)}`;
 
 // Η εβδομάδα σαν κορφογραμμή: ύψος = θετική υψομετρική, πλάτος = απόσταση.
@@ -184,6 +215,7 @@ function viewToday() {
     html += '<p class="figures"></p>';
   }
   html += `<p class="desc">${esc(day.desc)}</p>`;
+  html += structure(day);
   if (day.adjust) html += `<p class="adjust">${esc(day.adjust)}</p>`;
   if (day.done) html += `<p class="done-note">${esc(doneText(day.done))}</p>`;
   html += '</section>';
@@ -220,7 +252,7 @@ function viewPlan() {
       return `<details class="day ${st.cls}"><summary>
           <span class="d">${esc(d.dow.slice(0, 3))}</span><span class="t">${esc(d.title)}</span><span class="n">${nums}</span>
           ${st.text ? `<span class="s">${st.text}</span>` : ''}
-        </summary><div class="body"><p>${esc(d.desc)}</p>
+        </summary><div class="body"><p>${esc(d.desc)}</p>${structure(d)}
         ${d.km > 0 ? `<p class="muted">Περίπου ${dur(d.minutes)}</p>` : ''}
         ${d.done ? `<p class="done-note">${esc(doneText(d.done))}</p>` : ''}</div></details>`;
     }).join('');

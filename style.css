@@ -111,6 +111,20 @@ details.day > summary { display: grid; grid-template-columns: 2.6rem 1fr auto; g
 .day .body { padding: 0 0 .9rem 3.35rem; max-width: 42ch; }
 .day .body p + p { margin-top: .5rem; }
 
+/* Δομή προπόνησης */
+.struct { margin-top: 1.5rem; max-width: 34rem; }
+.sgraph { width: 100%; height: auto; display: block; }
+.sgraph rect { fill: var(--pine); opacity: .5; }
+.sgraph rect.hard { fill: var(--mark); opacity: 1; }
+.steps { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .8rem; }
+.steps ol { list-style: none; padding: 0; }
+.steps li { display: grid; gap: .1rem; }
+.steps li > b { font-weight: 800; }
+.steps li > span { font-variant-numeric: tabular-nums; }
+.steps li > small { color: var(--muted); }
+.steps li.rep { border-left: 3px solid var(--mark); padding-left: .8rem; }
+.steps li.rep > ol { margin: .55rem 0 0; display: grid; gap: .65rem; }
+
 /* Πρόοδος */
 .chart { margin-top: 1.75rem; }
 .chart h3 { margin-bottom: .25rem; }

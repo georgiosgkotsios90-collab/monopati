@@ -10,6 +10,8 @@ from __future__ import annotations
 import statistics
 from datetime import date, datetime, timedelta
 
+import workouts
+
 # --- Όρια του προγράμματος ---------------------------------------------------
 PEAK_KM = 62.0           # μέγιστος εβδομαδιαίος όγκος (km)
 PEAK_GAIN = 2500.0       # μέγιστη εβδομαδιαία θετική υψομετρική (m)
@@ -231,6 +233,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     race_mon = monday_of(race) if race else None
     n_weeks = 6 if not race else max(1, min(26, (race_mon - mon0).days // 7 + 1))
     pace = profile["pace"]
+    lthr = int(cfg.get("lthr") or workouts.DEFAULT_LTHR)  # όριο γαλακτικού: δίνει τα bpm κάθε ζώνης
 
     # Πρόσφατος αγώνας: δίνω χρόνο ανάκαμψης (π.χ. 7 ώρες αγώνας → 2 εβδομάδες χωρίς ένταση).
     last = cfg.get("last_race") or {}
@@ -367,10 +370,15 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
             elif kind == "recover" and rec_n and rec_n <= 7:
                 minutes = 30  # ελαφρύ περπάτημα
+            steps = workouts.build(title, minutes, lthr) if (km > 0 and kind != "race") else None
+            if steps:
+                minutes = max(minutes, int(round(workouts.total_sec(steps) / 60)))
             day = {
                 "date": d.isoformat(), "dow": DAYS_GR[dow], "kind": kind,
                 "title": title, "desc": desc, "km": km, "gain": gain, "minutes": minutes,
             }
+            if steps:
+                day["steps"] = steps
             done = done_by_date.get(d.isoformat())
             if done and d <= today:
                 day["done"] = {"km": round(done["km"], 1), "gain": int(done["gain"]), "minutes": int(done["minutes"])}
