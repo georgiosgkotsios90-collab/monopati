@@ -31,7 +31,11 @@ TEMPLATE = {
     5: ("long", 0.38, 0.43),
     6: ("medium", 0.22, 0.16),
 }
-REST_DAYS = {0: "rest", 4: "strength"}
+# Δευτέρα ενδυνάμωση (48 ώρες πριν την ποιοτική της Τετάρτης), Παρασκευή ξεκούραση πριν το μακρύ.
+REST_DAYS = {0: "strength", 4: "rest"}
+
+DESCENT_TIP = ("Στις κατηφόρες: μικρά γρήγορα βήματα, πόδια κάτω από το σώμα, χαλαρά γόνατα, "
+               "μάτια 3–4 μέτρα μπροστά, χωρίς φρένο στις φτέρνες.")
 
 
 # --- Βοηθητικά ---------------------------------------------------------------
@@ -139,10 +143,21 @@ def describe(kind: str, i: int, mode: str, left: int | None, cfg: dict) -> tuple
     if kind == "rest":
         return "Ξεκούραση", "Πλήρης ξεκούραση ή 20 λεπτά ελαφριά κινητικότητα."
     if kind == "strength":
-        return ("Ξεκούραση / ενδυνάμωση",
-                "Προαιρετικά 20–30 λεπτά ενδυνάμωση (καθίσματα, βήματα σε σκαλοπάτι, core) ή πλήρης ξεκούραση. Κράτα τα πόδια φρέσκα για το Σάββατο.")
+        if mode in ("taper", "recovery"):
+            return ("Ελαφριά κινητικότητα",
+                    "20 λεπτά κινητικότητα και ελαφρύ core. Όχι βαριά κατεβάσματα πριν τον αγώνα.")
+        s = 2 if mode == "down" else min(4, 2 + i // 6)
+        return ("Ενδυνάμωση για κατηφόρες",
+                f"35 λεπτά, {s} σετ στο καθένα, αργές κινήσεις: "
+                f"καθίσματα σε ένα πόδι με 3 δευτερόλεπτα κάθοδο (8), "
+                f"αργά κατεβάσματα από σκαλοπάτι (10 ανά πόδι), "
+                f"Bulgarian split squat (8 ανά πόδι), "
+                f"ανύψωση φτέρνας σε σκαλί (12 ανά πόδι), "
+                f"γέφυρα γλουτών σε ένα πόδι (10) και σανίδα 40 δευτερόλεπτα. "
+                f"Η αργή κάθοδος δυναμώνει τους τετρακέφαλους που φρενάρουν στις κατηφόρες. "
+                f"Αν την επόμενη μέρα πονούν πολύ, κάν' το πιο ελαφρύ την επόμενη φορά.")
     if kind == "recover":
-        return "Αποκατάσταση", "Περπάτημα, ξεκούραση και καλό φαγητό. Μπράβο σου!"
+        return "Ξεκούραση", "Ξεκούραση ή ελαφρύ περπάτημα 20–30 λεπτά. Κανένα τρέξιμο. Φάε και πιες καλά."
     if kind == "prerace":
         return "Ξεκούραση πριν τον αγώνα", "Ετοίμασε εξοπλισμό και τροφές, φάε καλά και κοιμήσου νωρίς."
     if kind == "shakeout":
@@ -151,24 +166,44 @@ def describe(kind: str, i: int, mode: str, left: int | None, cfg: dict) -> tuple
         return (f"ΑΓΩΝΑΣ: {cfg.get('race_name', 'Trail')}",
                 "Ξεκίνα συντηρητικά τα πρώτα χιλιόμετρα, φάε και πιες από νωρίς, περπάτα τις απότομες ανηφόρες. Απόλαυσε το!")
     if kind == "easy":
-        return ("Εύκολο τρέξιμο",
-                "Άνετος ρυθμός, να μπορείς να μιλάς χωρίς κόπο. Περπάτα τις απότομες ανηφόρες αν ανεβαίνει ο παλμός.")
+        if mode == "recovery":
+            return ("Πολύ εύκολο τρέξιμο",
+                    "Πολύ χαλαρά, 20–40 λεπτά σε επίπεδο. Αν πονούν οι μύες ή οι αρθρώσεις, περπάτησε. Χωρίς ανηφόρες, ταχύτητες ή κατηφόρες.")
+        if mode == "taper":
+            return "Εύκολο τρέξιμο", "Άνετος ρυθμός, να μπορείς να μιλάς χωρίς κόπο."
+        return ("Εύκολο στην άσφαλτο",
+                "Άνετος ρυθμός σε άσφαλτο ή χωματόδρομο χωρίς έντονες κλίσεις, να μπορείς να μιλάς χωρίς κόπο. Η άσφαλτος δίνει συχνότητα βήματος και ανάρρωση για το βουνό.")
     if kind == "easy2":
-        return ("Εύκολο + ζωηρά βήματα",
-                "Άνετο τρέξιμο και στο τέλος 6×20 δευτερόλεπτα ζωηρά βήματα (strides) σε επίπεδο, με πλήρη ανάρρωση ανάμεσα.")
+        return ("Εύκολο στην άσφαλτο + ζωηρά βήματα",
+                "Άνετο τρέξιμο σε άσφαλτο και στο τέλος 6×20 δευτερόλεπτα ζωηρά βήματα (strides) σε επίπεδο ή ελαφριά κατηφόρα, με πλήρη ανάρρωση ανάμεσα. Εξάσκηση στην ταχύτητα των ποδιών.")
     if kind == "quality":
         if mode == "down":
             return "Ελαφρύ fartlek", "Άνετο τρέξιμο με 6×1 λεπτό ζωηρά, 2 λεπτά χαλαρά ανάμεσα."
         if mode == "taper":
             return ("Ελαφριά ποιότητα",
                     "Ζέσταμα 10 λεπτά, 4×2 λεπτά γρήγορη ανηφόρα (ελεγχόμενα), χαλαρή κατηφόρα, 10 λεπτά αποψύχρανση.")
-        if i % 2 == 0:
-            reps = min(10, 5 + i // 2)
-            return (f"Ανηφόρες {reps}×3'",
-                    f"Ζέσταμα 15 λεπτά, {reps}×3 λεπτά γρήγορη ανηφόρα (δύσκολο αλλά ελεγχόμενο), κατηφόρα χαλαρά για ανάρρωση, 10 λεπτά αποψύχρανση.")
-        tm = int(5 * round(min(35, 15 + 2 * i) / 5))
-        return (f"Tempo {tm}'",
-                f"Ζέσταμα 15 λεπτά, {tm} λεπτά σε ρυθμό «άνετα σκληρό», 10 λεπτά αποψύχρανση.")
+        cyc = i % 3
+        if cyc == 0:
+            reps = min(10, 5 + i // 3)
+            return (f"Ανηφόρες {reps}×3' (μονοπάτι)",
+                    f"Ζέσταμα 15 λεπτά, {reps}×3 λεπτά γρήγορη ανηφόρα (δύσκολο αλλά ελεγχόμενο). "
+                    f"Η κατηφόρα είναι προπόνηση τεχνικής, όχι ανάπαυση: μικρά γρήγορα βήματα και χαλαρά γόνατα. "
+                    f"10 λεπτά αποψύχρανση.")
+        if cyc == 1:
+            if (i // 3) % 2 == 0:
+                tm = int(5 * round(min(35, 15 + 2 * i) / 5))
+                return (f"Tempo {tm}' (άσφαλτος)",
+                        f"Ζέσταμα 15 λεπτά, {tm} λεπτά σε ρυθμό «άνετα σκληρό» σε επίπεδη άσφαλτο ή ποδηλατόδρομο, 10 λεπτά αποψύχρανση.")
+            n = min(6, 3 + i // 6)
+            return (f"Διαλείμματα κατωφλίου {n}×6' (άσφαλτος)",
+                    f"Ζέσταμα 15 λεπτά, {n}×6 λεπτά σε ρυθμό κατωφλίου (δύσκολο αλλά σταθερό) με 2 λεπτά χαλαρό τρέξιμο ανάμεσα, 10 λεπτά αποψύχρανση. Σε επίπεδο, ώστε να κρατάς τον ρυθμό.")
+        reps = min(10, 4 + i // 4)
+        return (f"Κατηφόρες {reps}× (τεχνική)",
+                f"Ζέσταμα 15 λεπτά και ανηφόρα προς μια κατηφόρα 6–10% και 150–300 μέτρα, σε μονοπάτι χωρίς πολλές πέτρες. "
+                f"{reps} κατεβάσματα με γρήγορα μικρά βήματα, κορμός ελαφρά μπροστά από τους αστραγάλους (όχι κάθετος), "
+                f"πόδια κάτω από το σώμα, μάτια 3–4 μέτρα μπροστά. Γύρνα πάνω περπατώντας ή τρέχοντας εύκολα. "
+                f"Τις πρώτες φορές κάν' τα ελεγχόμενα, όχι στο όριο: οι τετρακέφαλοι πονούν 1–2 μέρες. "
+                f"10 λεπτά αποψύχρανση.")
     if kind == "long":
         if mode == "down":
             return "Μακρύ (αποφόρτιση)", "Πιο σύντομο και χαλαρό μακρύ σε ανάγλυφο. Άφησε τα πόδια να ανακάμψουν."
@@ -176,9 +211,9 @@ def describe(kind: str, i: int, mode: str, left: int | None, cfg: dict) -> tuple
             return "Μακρύ, ελαφρύ", "Μέτριο τρέξιμο σε ανάγλυφο, χωρίς πίεση. Κράτα τα πόδια φρέσκα για τον αγώνα."
         if left is not None and left <= 8:
             return ("Μακρύ trail: προσομοίωση αγώνα",
-                    "Μακρύ σε ανάγλυφο όσο πιο κοντά στο προφίλ του αγώνα. Περπάτα τις απότομες ανηφόρες (power hiking) και δοκίμασε τον εξοπλισμό και την ίδια τροφή και υγρά που θα έχεις στον αγώνα.")
+                    "Μακρύ σε ανάγλυφο όσο πιο κοντά στο προφίλ του αγώνα. Περπάτα τις απότομες ανηφόρες (power hiking) και δοκίμασε τον εξοπλισμό και την ίδια τροφή και υγρά που θα έχεις στον αγώνα. " + DESCENT_TIP)
         return ("Μακρύ trail",
-                "Μακρύ σε ανάγλυφο, άνετος ρυθμός. Περπάτα τις απότομες ανηφόρες και εξάσκησε τη λήψη τροφής και υγρών.")
+                "Μακρύ σε ανάγλυφο, άνετος ρυθμός. Περπάτα τις απότομες ανηφόρες και εξάσκησε τη λήψη τροφής και υγρών. " + DESCENT_TIP)
     if kind == "medium":
         if mode in ("down", "taper"):
             return "Εύκολο τρέξιμο", "Χαλαρό και σύντομο."
@@ -197,13 +232,37 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     n_weeks = 6 if not race else max(1, min(26, (race_mon - mon0).days // 7 + 1))
     pace = profile["pace"]
 
-    km_level = min(PEAK_KM, max(profile["base_km"], MIN_BASE_KM))
-    gain_level = min(PEAK_GAIN, max(profile["base_gain"], km_level * 12))
+    # Πρόσφατος αγώνας: δίνω χρόνο ανάκαμψης (π.χ. 7 ώρες αγώνας → 2 εβδομάδες χωρίς ένταση).
+    last = cfg.get("last_race") or {}
+    rec_start = rec_end = None
+    if last.get("date"):
+        lr = to_date(last["date"])
+        hours = float(last.get("hours") or 0)
+        rdays = 14 if hours >= 6 else 10 if hours >= 4 else 7 if hours >= 2 else 4
+        end = monday_of(lr + timedelta(days=rdays)) + timedelta(days=6)
+        if end >= today:
+            rec_start, rec_end = lr, end
+
+    # Όρια από το ιστορικό σου (TrainingPeaks): ό,τι έχεις ήδη αντέξει καθορίζει το ταβάνι.
+    hist = cfg.get("history") or {}
+    peak_km, peak_gain, long_max = PEAK_KM, PEAK_GAIN, LONG_RUN_MAX_KM
+    typical = 0.0
+    if hist.get("peak_4wk_km"):
+        peak_km = max(PEAK_KM, min(90.0, float(hist["peak_4wk_km"]) * 1.03))
+        peak_gain = max(PEAK_GAIN, min(3200.0, peak_km * 37))
+        typical = float(hist.get("typical_week_km") or 0)
+    if hist.get("longest_run_km"):
+        long_max = max(LONG_RUN_MAX_KM, min(38.0, float(hist["longest_run_km"]) * 0.7))
+
+    km_level = min(peak_km, max(profile["base_km"], MIN_BASE_KM))
+    gain_level = min(peak_gain, max(profile["base_gain"], km_level * 12))
     base_ratio = gain_level / km_level
-    if status["reduce"]:
+    # Μετά από αγώνα το φορτίο της εβδομάδας είναι φυσιολογικά υψηλό και δεν σημαίνει υπερπροπόνηση.
+    if status["reduce"] and not rec_start:
         km_level *= 0.85
         gain_level *= 0.85
-    skip_growth = status["hold"]
+    skip_growth = status["hold"] and not rec_start
+    in_recovery = False
 
     done_by_date: dict[str, dict] = {}
     for a in acts:
@@ -219,12 +278,24 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
         wk = mon0 + timedelta(weeks=i)
         left = (race_mon - wk).days // 7 if race else None
 
-        if left is not None and left <= 2:
+        rec_week = bool(rec_start) and sum(
+            1 for k in range(7) if rec_start < wk + timedelta(days=k) <= rec_end) >= 4
+        if rec_week:
+            n1 = (wk - rec_start).days
+            mode, label = "recovery", "Ανάκαμψη μετά τον αγώνα"
+            frac = 0.25 if n1 < 7 else 0.45
+            wk_km, wk_gain = km_level * frac, gain_level * 0.2
+            in_recovery = True
+        elif left is not None and left <= 2:
             mode = "taper"
             frac = {2: 0.75, 1: 0.55, 0: 0.35}[left]
             label = "Εβδομάδα αγώνα" if left == 0 else "Αποκλιμάκωση (taper)"
             wk_km, wk_gain = km_level * frac, gain_level * frac
         else:
+            if in_recovery:  # πρώτη εβδομάδα μετά την ανάκαμψη: ξεκινάω χαμηλότερα και ανεβαίνω
+                km_level *= 0.8
+                gain_level *= 0.8
+                in_recovery = False
             is_down = i > 0 and ((left is not None and left > 3 and (left - 3) % 4 == 0) or (left is None and i % 4 == 3))
             if is_down:
                 mode, label = "down", "Αποφόρτιση"
@@ -235,9 +306,11 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                     if skip_growth:
                         skip_growth = False
                     else:
-                        km_level = min(PEAK_KM, km_level * GROWTH_KM)
+                        # Επιστροφή στο παλιό επίπεδό σου: λίγο πιο γρήγορη αύξηση μέχρι το 85% του συνηθισμένου όγκου.
+                        growth = 1.12 if (typical and km_level < typical * 0.85) else GROWTH_KM
+                        km_level = min(peak_km, km_level * growth)
                         floor_ratio = min(PEAK_RATIO, base_ratio + 1.5 * i)
-                        gain_level = min(PEAK_GAIN, max(gain_level * GROWTH_GAIN, km_level * floor_ratio))
+                        gain_level = min(peak_gain, max(gain_level * (GROWTH_GAIN if growth == GROWTH_KM else 1.14), km_level * floor_ratio))
                 up_count += 1
                 label = "Ειδική προετοιμασία" if (left is not None and left <= 8) else "Ανάπτυξη"
                 wk_km, wk_gain = km_level, gain_level
@@ -263,12 +336,37 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 kind, fk, fg = TEMPLATE[dow]
                 km, gain = _r5(wk_km * fk), _r10(wk_gain * fg)
                 if kind == "long":
-                    km = min(km, LONG_RUN_MAX_KM)
+                    km = min(km, long_max)
             else:
                 kind = REST_DAYS.get(dow, "rest")
 
-            title, desc = describe(kind, i, mode, left, cfg)
+            rec_n = (d - rec_start).days if rec_start and rec_start < d <= rec_end else 0
+            if rec_n and kind != "race":
+                wd = d.weekday()
+                if rec_n <= 7:
+                    kind, km, gain = ("easy", 4.0, 50) if rec_n in (5, 7) else ("recover", 0.0, 0)
+                elif wd in (1, 3):
+                    kind, km, gain = "easy", 6.0, 80
+                elif wd == 5:
+                    kind, km, gain = "easy", 10.0, 150
+                elif wd == 0:
+                    kind, km, gain = "strength", 0.0, 0
+                else:
+                    kind, km, gain = "recover", 0.0, 0
+
+            title, desc = describe(kind, i, "recovery" if rec_n else mode, left, cfg)
+            if rec_start and d == rec_start:
+                kind, km, gain = "rest", 0.0, 0
+                title, desc = f"Αγώνας {last.get('km', '')} km", "Ολοκληρώθηκε."
+            if rec_n == 1 and kind == "recover":
+                title = "Ανάκαμψη μετά τον αγώνα"
+                desc = (f"Μπράβο για τα {last.get('km', '')} km! Για τις επόμενες 2–3 μέρες κανένα τρέξιμο: "
+                        "περπάτημα 20–30 λεπτά, πολύ νερό, φαγητό με υδατάνθρακες και πρωτεΐνη, και ύπνος.")
             minutes = int(5 * round(effort(km, gain) * pace / 5)) if km > 0 else 0
+            if kind == "strength":
+                minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
+            elif kind == "recover" and rec_n and rec_n <= 7:
+                minutes = 30  # ελαφρύ περπάτημα
             day = {
                 "date": d.isoformat(), "dow": DAYS_GR[dow], "kind": kind,
                 "title": title, "desc": desc, "km": km, "gain": gain, "minutes": minutes,

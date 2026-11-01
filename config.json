@@ -1,7 +1,22 @@
 {
   "race_name": "Trail 40K",
-  "race_date": null,
+  "race_date": "2027-04-18",
   "race_km": 40,
   "race_gain": 3000,
-  "days_per_week": 5
+  "days_per_week": 5,
+  "history": {
+    "peak_week_km": 96,
+    "peak_4wk_km": 84,
+    "typical_week_km": 67,
+    "longest_run_km": 53.1,
+    "longest_run_hours": 6.7,
+    "max_hr": 186,
+    "from_date": "2024-04-01",
+    "to_date": "2025-12-29"
+  },
+  "last_race": {
+    "date": "2026-10-31",
+    "km": 53,
+    "hours": 7
+  }
 }

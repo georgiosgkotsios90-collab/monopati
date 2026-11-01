@@ -178,6 +178,8 @@ function viewToday() {
   html += `<section><p class="when">${esc(longDate(today))}</p><h2>${esc(day.title)}</h2>`;
   if (day.km > 0) {
     html += `<p class="figures"><span><b>${km(day.km)}</b> km</span><span><b>+${mt(day.gain)}</b> m</span><span><b>${dur(day.minutes)}</b></span></p>`;
+  } else if (day.minutes > 0) {
+    html += `<p class="figures"><span><b>${dur(day.minutes)}</b></span></p>`;
   } else {
     html += '<p class="figures"></p>';
   }
@@ -214,7 +216,7 @@ function viewPlan() {
     const isCur = cur && w.week_start === cur.week_start;
     const days = w.days.map((d) => {
       const st = dayStatus(d, today);
-      const nums = d.km > 0 ? `${km(d.km)} km, +${mt(d.gain)} m` : '';
+      const nums = d.km > 0 ? `${km(d.km)} km, +${mt(d.gain)} m` : d.minutes > 0 ? dur(d.minutes) : '';
       return `<details class="day ${st.cls}"><summary>
           <span class="d">${esc(d.dow.slice(0, 3))}</span><span class="t">${esc(d.title)}</span><span class="n">${nums}</span>
           ${st.text ? `<span class="s">${st.text}</span>` : ''}
