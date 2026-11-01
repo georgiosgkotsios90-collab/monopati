@@ -1,0 +1,152 @@
+/* Μονοπάτι: ψυχρό γκρι του γρανίτη, βαθύ πράσινο του πεύκου, κίτρινο της σήμανσης μονοπατιού. */
+:root {
+  --bg: #E8EDEB;
+  --ink: #172220;
+  --muted: #56645F;
+  --pine: #1F4D40;
+  --pine-soft: rgba(31, 77, 64, .16);
+  --mark: #E8B923;
+  --alert: #A92E1A;
+  --line: rgba(23, 34, 32, .16);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1615;
+    --ink: #E7EEEC;
+    --muted: #9AABA6;
+    --pine: #6FB59C;
+    --pine-soft: rgba(111, 181, 156, .18);
+    --alert: #F08A74;
+    --line: rgba(231, 238, 236, .16);
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+main {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: calc(1.25rem + env(safe-area-inset-top)) 1.25rem 2rem;
+}
+
+h1, h2, h3, p, ul, ol, dl, dd { margin: 0; }
+h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.01em; }
+h2 { font-size: clamp(1.75rem, 7.2vw, 2.4rem); line-height: 1.08; font-weight: 800; letter-spacing: -.025em; }
+h3 { font-size: 1rem; font-weight: 800; }
+
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+
+.loading, .muted { color: var(--muted); }
+.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; margin-bottom: 1.75rem; }
+.top .sub { color: var(--muted); font-size: .95rem; }
+
+/* Σημειώσεις στο πάνω μέρος */
+.banner { border-left: 4px solid var(--alert); padding: .25rem 0 .25rem .75rem; margin-bottom: 1.25rem; font-size: .95rem; }
+.banner.info { border-color: var(--mark); }
+
+/* Η σημερινή προπόνηση */
+.when { color: var(--muted); margin-bottom: .35rem; }
+.figures { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; margin: 1rem 0 .75rem; align-items: baseline; }
+.figures b { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.figures span { color: var(--muted); }
+.desc { max-width: 38ch; }
+.adjust { margin-top: .85rem; border-left: 4px solid var(--alert); padding-left: .75rem; }
+.done-note { margin-top: .85rem; color: var(--pine); font-weight: 700; }
+
+/* Η εβδομάδα σαν κορφογραμμή */
+.week-now { margin-top: 2.25rem; }
+.week-now .meta { color: var(--muted); font-size: .95rem; margin-bottom: .25rem; }
+.ridge { width: 100%; height: auto; display: block; overflow: visible; }
+.ridge .ground { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ridge .peak { fill: var(--pine-soft); stroke: var(--pine); stroke-width: 2; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: 50% 100%; }
+.ridge .peak.done { fill: var(--pine); }
+.ridge .peak.missed { fill: none; stroke: var(--muted); stroke-dasharray: 4 4; }
+.ridge .peak.today { stroke: var(--ink); stroke-width: 3; }
+.ridge .lbl { fill: var(--muted); font-size: 22px; }
+.ridge .lbl.is-today { fill: #172220; font-weight: 800; }
+.ridge .pill { fill: var(--mark); }
+.ridge.play .peak { animation: rise .8s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 90ms); }
+@keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .ridge.play .peak { animation: none; } }
+
+/* Δείκτες Garmin */
+.vitals { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem 1.5rem; margin-top: 2.25rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.vitals dt { color: var(--muted); font-size: .9rem; }
+.vitals dd { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vitals dd small { font-size: .85rem; font-weight: 400; color: var(--muted); }
+
+.notes { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.notes ul { padding-left: 1.1rem; margin-top: .5rem; display: grid; gap: .5rem; }
+
+/* Πρόγραμμα */
+.page-title { margin-bottom: 1.25rem; }
+details.week { border-top: 1px solid var(--line); }
+details.week > summary { padding: .9rem 0; display: grid; grid-template-columns: 1fr auto; gap: 0 1rem; cursor: pointer; list-style: none; min-height: 48px; }
+details > summary::-webkit-details-marker { display: none; }
+.week .wk { font-weight: 800; }
+.week .wl, .week .wt { color: var(--muted); font-size: .92rem; }
+.week .wt { text-align: right; font-variant-numeric: tabular-nums; }
+.week.current > summary .wk { box-shadow: inset 0 -.4em 0 var(--mark); width: fit-content; }
+.days { padding-bottom: .75rem; }
+details.day { border-top: 1px solid var(--line); }
+details.day > summary { display: grid; grid-template-columns: 2.6rem 1fr auto; gap: .1rem .75rem; padding: .7rem 0; cursor: pointer; list-style: none; min-height: 48px; align-items: baseline; }
+.day .d { color: var(--muted); }
+.day .t { font-weight: 700; }
+.day .n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; font-size: .92rem; }
+.day .s { grid-column: 2 / 4; font-size: .88rem; color: var(--muted); }
+.day.today > summary .d { color: var(--ink); font-weight: 800; box-shadow: inset 0 -.4em 0 var(--mark); width: fit-content; }
+.day.done .s { color: var(--pine); font-weight: 700; }
+.day.missed .s { color: var(--alert); font-weight: 700; }
+.day .body { padding: 0 0 .9rem 3.35rem; max-width: 42ch; }
+.day .body p + p { margin-top: .5rem; }
+
+/* Πρόοδος */
+.chart { margin-top: 1.75rem; }
+.chart h3 { margin-bottom: .25rem; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .act { fill: var(--pine); }
+.chart .plan { fill: var(--pine-soft); stroke: var(--pine); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.chart .val { fill: var(--ink); font-size: 17px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.chart .lbl { fill: var(--muted); font-size: 18px; text-anchor: middle; }
+.chart .pill { fill: var(--mark); }
+.legend { color: var(--muted); font-size: .9rem; margin-top: .75rem; }
+.recent { margin-top: 2.25rem; }
+.recent ul { list-style: none; padding: 0; margin-top: .5rem; }
+.recent li { display: grid; grid-template-columns: 4.2rem 1fr; gap: 0 .75rem; padding: .65rem 0; border-top: 1px solid var(--line); align-items: baseline; }
+.recent .nm { font-weight: 700; }
+.recent .nu { grid-column: 2; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .92rem; }
+.recent .dt { color: var(--muted); font-size: .92rem; }
+.foot { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; display: grid; gap: .75rem; }
+.link { background: none; border: 0; padding: .6rem 0; min-height: 48px; text-align: left; text-decoration: underline; cursor: pointer; color: var(--ink); width: fit-content; }
+
+/* Κλείδωμα και μηνύματα */
+.lock, .problem { max-width: 24rem; margin-top: 12vh; display: grid; gap: .9rem; }
+.lock h1, .problem h1 { font-size: 2rem; }
+.lock label { font-weight: 700; }
+.lock input[type=password] { font: inherit; font-size: 1.1rem; padding: .8rem .9rem; border: 2px solid var(--ink); border-radius: 6px; background: transparent; color: var(--ink); width: 100%; min-height: 52px; }
+.lock .check { display: flex; gap: .6rem; align-items: center; font-weight: 400; min-height: 48px; }
+.lock .check input { width: 22px; height: 22px; accent-color: var(--pine); }
+.error { color: var(--alert); min-height: 1.5em; font-weight: 700; }
+.btn { font: inherit; font-weight: 800; background: var(--pine); color: var(--bg); border: 0; border-radius: 6px; min-height: 52px; padding: 0 1.25rem; cursor: pointer; }
+.btn[disabled] { opacity: .6; cursor: progress; }
+
+/* Κάτω πλοήγηση */
+#tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--bg); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#tabs button { background: none; border: 0; min-height: 56px; color: var(--muted); font-weight: 700; cursor: pointer; }
+#tabs button[aria-current=page] { color: var(--ink); box-shadow: inset 0 3px 0 var(--mark); }

@@ -1,0 +1,52 @@
+name: Daily update
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # 04:00 UTC = 06:00 στην Ελλάδα τον χειμώνα (07:00 το καλοκαίρι)
+  workflow_dispatch:       # επιτρέπει και χειροκίνητη εκτέλεση
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update plan
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python update.py
+
+      - name: Save encrypted data
+        run: |
+          git config user.name "monopati-bot"
+          git config user.email "monopati-bot@users.noreply.github.com"
+          git add data.enc
+          git diff --cached --quiet || (git commit -m "Daily update" && git push)
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -n "$NTFY_TOPIC" ]; then
+            curl -s -H "Title: Monopati failed" -d "Η αυτόματη ενημέρωση απέτυχε. Δες το Actions στο GitHub." "https://ntfy.sh/$NTFY_TOPIC" > /dev/null
+          fi
