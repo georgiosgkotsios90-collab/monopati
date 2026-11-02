@@ -62,9 +62,13 @@ def _normalize(raw) -> list[dict]:
     return out
 
 
-def fetch(email: str, password: str, today: date, days: int = 120) -> tuple[list[dict], dict]:
+def login(email: str, password: str):
+    return _login(email, password)
+
+
+def fetch(email: str, password: str, today: date, days: int = 120, api=None) -> tuple[list[dict], dict]:
     """Επιστρέφει (δραστηριότητες, δείκτες ευεξίας). Οι δείκτες ευεξίας είναι προαιρετικοί."""
-    api = _login(email, password)
+    api = api or _login(email, password)
     start = today - timedelta(days=days)
     acts = _normalize(api.get_activities_by_date(start.isoformat(), today.isoformat()))
 

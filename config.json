@@ -31,5 +31,7 @@
     "km": 53,
     "hours": 7
   },
-  "lthr": 155
+  "lthr": 155,
+  "garmin_sync": true,
+  "garmin_sync_days": 7
 }

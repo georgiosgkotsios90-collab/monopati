@@ -114,6 +114,7 @@ def main() -> int:
         if not args.demo and len(password) < MIN_PASSWORD_LEN:
             raise SystemExit(f"Το APP_PASSWORD πρέπει να έχει τουλάχιστον {MIN_PASSWORD_LEN} χαρακτήρες "
                              "(τα κρυπτογραφημένα δεδομένα είναι δημόσια, οπότε ο κωδικός είναι η μόνη προστασία).")
+        api = None
         if args.demo:
             acts, wellness = demo_data(today)
             password = password or "demo-password"
@@ -122,7 +123,8 @@ def main() -> int:
             email, gpw = os.environ.get("GARMIN_EMAIL"), os.environ.get("GARMIN_PASSWORD")
             if not email or not gpw:
                 raise SystemExit("Λείπουν τα GARMIN_EMAIL / GARMIN_PASSWORD.")
-            acts, wellness = garmin_source.fetch(email, gpw, today)
+            api = garmin_source.login(email, gpw)
+            acts, wellness = garmin_source.fetch(email, gpw, today, api=api)
 
         profile = planner.build_profile(acts, today)
         status = planner.build_status(acts, profile, today, wellness)
@@ -158,6 +160,17 @@ def main() -> int:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(blob), encoding="utf-8")
         print(f"OK: {len(acts)} δραστηριότητες, {len(plan)} εβδομάδες προγράμματος → {out}")
+
+        # Αποστολή των προπονήσεων στο ρολόι (ημερολόγιο Garmin Connect). Αν αποτύχει, τα δεδομένα έχουν ήδη σωθεί.
+        if not args.demo and cfg.get("garmin_sync", True):
+            try:
+                import garmin_sync
+                res = garmin_sync.sync(api, plan, today, int(cfg.get("garmin_sync_days", 7)))
+                print(f"Garmin: σβήστηκαν {res['deleted']}, προγραμματίστηκαν {len(res['scheduled'])}: {', '.join(res['scheduled'])}")
+            except Exception as e:
+                traceback.print_exc()
+                notify(topic, "Μονοπάτι: οι προπονήσεις δεν πέρασαν στο ρολόι",
+                       f"{type(e).__name__}: {e}"[:300], priority=4)
 
         msg = morning_message(plan, today)
         if msg:
