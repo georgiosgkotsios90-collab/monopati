@@ -2,7 +2,11 @@ name: Daily update
 
 on:
   schedule:
-    - cron: "0 4 * * *"   # 04:00 UTC = 06:00 στην Ελλάδα τον χειμώνα (07:00 το καλοκαίρι)
+    # 08:00 ώρα Ελλάδας: 06:00 UTC τον χειμώνα, 05:00 UTC το καλοκαίρι.
+    # Τρέχουν και τα δύο. Το βήμα «Check time» αφήνει να συνεχίσει μόνο αυτό που πέφτει μετά τις 08:00
+    # και μόνο αν δεν έχει γίνει ήδη ενημέρωση σήμερα μετά τις 08:00.
+    - cron: "0 5 * * *"
+    - cron: "0 6 * * *"
   workflow_dispatch:       # επιτρέπει και χειροκίνητη εκτέλεση
 
 permissions:
@@ -18,16 +22,34 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - name: Check time
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          HOUR=$((10#$(TZ=Europe/Athens date +%H)))
+          TODAY=$(TZ=Europe/Athens date +%F)
+          LAST=$(git log -1 --format=%ct -- data.enc 2>/dev/null); LAST=${LAST:-0}
+          LAST_DAY=$(TZ=Europe/Athens date -d "@$LAST" +%F)
+          LAST_HOUR=$((10#$(TZ=Europe/Athens date -d "@$LAST" +%H)))
+          if [ "$HOUR" -lt 8 ]; then echo "Νωρίτερα από τις 08:00 ώρα Ελλάδας, παράλειψη."; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$LAST_DAY" = "$TODAY" ] && [ "$LAST_HOUR" -ge 8 ]; then echo "Έγινε ήδη ενημέρωση σήμερα, παράλειψη."; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
         run: pip install -r requirements.txt
 
       - name: Update plan
+        if: steps.gate.outputs.run == 'true'
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
@@ -36,6 +58,7 @@ jobs:
         run: python update.py
 
       - name: Save encrypted data
+        if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "monopati-bot"
           git config user.email "monopati-bot@users.noreply.github.com"
