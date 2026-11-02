@@ -89,6 +89,15 @@ section > .sec-h { margin-top: 1.4rem; }
 .done-note { margin-top: .85rem; color: var(--volt); font-weight: 800; }
 .fuel p:last-child { font-size: .93rem; }
 
+/* Γιατί */
+.why { margin-top: .8rem; font-size: .9rem; }
+.why > summary { cursor: pointer; color: var(--volt); font-weight: 800; list-style: none; }
+.why > summary::-webkit-details-marker { display: none; }
+.why > summary::before { content: "ⓘ "; }
+.why p, .why-txt { color: var(--muted); font-size: .88rem; margin-top: .4rem; }
+.why-txt b { color: var(--ink); }
+.hero.kind-mlr .tag { color: var(--sky); }
+
 /* Δομή προπόνησης */
 .struct { margin-top: 1rem; }
 .sgraph { width: 100%; height: auto; display: block; margin-bottom: .6rem; }

@@ -1,9 +1,18 @@
 {
-  "race_name": "Trail 40K",
-  "race_date": "2027-04-18",
-  "race_km": 40,
-  "race_gain": 3000,
+  "race_name": "Olympus Marathon",
+  "race_date": "2027-06-26",
+  "race_km": 44,
+  "race_gain": 3350,
   "days_per_week": 5,
+  "week_template": [
+    "rest",
+    "q1",
+    "mlr",
+    "gym",
+    "q2",
+    "easy",
+    "long"
+  ],
   "history": {
     "peak_week_km": 96,
     "peak_4wk_km": 84,

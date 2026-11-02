@@ -74,6 +74,35 @@ def build(title: str, minutes: int, lthr: int = DEFAULT_LTHR) -> list | None:
         return _wrap([_step("Ζέσταμα", 300, "rec", lthr)], [], [cool(5)], total, lthr, band="warm", name="Εύκολο")
     if title.startswith(("Εύκολο στην άσφαλτο", "Εύκολο τρέξιμο", "Μέτριο")):
         return _wrap([warm(5)], [], [cool(5)], total, lthr)
+    if title.startswith("Ανηφορικά σπριντ"):
+        n = _num(r"(\d+)×", title, 8)
+        main = [_rep(n, [_step("Σπριντ σε ανηφόρα", 12, "stride", lthr, "Απότομη ανηφόρα 8–12%, σχεδόν τέρμα, χαλαρό πάνω σώμα"),
+                         _free("Περπάτημα κάτω", 108, "Πλήρης ανάκαμψη: περπάτα πίσω στην αφετηρία")])]
+        return _wrap([warm(15)], main, [cool(5)], total, lthr)
+    if title.startswith("Ανηφόρες VO2"):
+        n = _num(r"(\d+)×", title, 5)
+        m = _num(r"×(\d+)'", title, 3)
+        main = [_rep(n, [_step("Ανηφόρα δυνατά", m * 60, "hill", lthr, "Κλίση 6–10%, δύσκολο αλλά σταθερό ως το τέλος"),
+                         _free("Κατέβασμα χαλαρά", m * 60, "Τρέξιμο ή περπάτημα προς τα κάτω, πλήρης ανάκαμψη")])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Ανηφορικό κατώφλι"):
+        n = _num(r"(\d+)×", title, 3)
+        m = _num(r"×(\d+)'", title, 12)
+        main = [_rep(n, [_step("Ανάβαση στο κατώφλι", m * 60, "thresh", lthr, "Συνεχής ανηφόρα. Όπου η κλίση ξεπερνά ~20%, γρήγορο περπάτημα με μπατόν"),
+                         _free("Κατέβασμα", max(180, m * 30), "Χαλαρό κατέβασμα με καλή τεχνική")])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Ανάβαση tempo"):
+        m = _num(r"tempo (\d+)'", title, 30)
+        main = [_step("Συνεχής ανάβαση tempo", m * 60, "tempo", lthr, "Ρυθμός αγώνα στην ανηφόρα: τρέξιμο και power hiking στα απότομα"),
+                _free("Κατηφόρα γρήγορα και ελεγχόμενα", max(600, m * 30), "Μικρά γρήγορα βήματα, χαλαρά γόνατα, μάτια 3–4 μ. μπροστά")]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Κατώφλι"):
+        n = _num(r"(\d+)×", title, 4)
+        m = _num(r"×(\d+)'", title, 8)
+        main = [_rep(n, [_step("Κατώφλι", m * 60, "thresh", lthr), _step("Χαλαρό τρέξιμο", 120, "rec", lthr)])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Medium long"):
+        return _wrap([warm(10)], [], [cool(5)], total, lthr, name="Σταθερό αερόβιο")
     if title.startswith("Ανηφόρες"):
         n = _num(r"(\d+)×", title, 5)
         main = [_rep(n, [_step("Ανηφόρα", 180, "hill", lthr),

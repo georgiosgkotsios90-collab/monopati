@@ -23,7 +23,7 @@ CTL_DAYS, ATL_DAYS = 42, 7
 DEFAULT_IF = 0.78
 
 # Αναμενόμενη ένταση (ως κλάσμα του LTHR) για ημέρες χωρίς δομή βημάτων.
-PLAN_IF = {"easy": 0.78, "easy2": 0.8, "quality": 0.9, "long": 0.8, "medium": 0.78,
+PLAN_IF = {"mlr": 0.78, "easy": 0.78, "easy2": 0.8, "quality": 0.9, "long": 0.8, "medium": 0.78,
            "shakeout": 0.72, "race": 0.86}
 
 

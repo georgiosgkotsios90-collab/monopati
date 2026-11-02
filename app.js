@@ -17,8 +17,8 @@ const ICON = {
 };
 const TABS = [['today', 'Σήμερα'], ['plan', 'Πρόγραμμα'], ['race', 'Αγώνας'], ['form', 'Φόρμα'], ['lib', 'Εργαλεία']];
 const KIND_TAG = {
-  easy: 'ΕΥΚΟΛΟ', easy2: 'ΕΥΚΟΛΟ + STRIDES', quality: 'ΠΟΙΟΤΙΚΗ', long: 'ΜΑΚΡΥ', medium: 'ΜΕΤΡΙΟ',
-  strength: 'ΔΥΝΑΜΗ', rest: 'ΞΕΚΟΥΡΑΣΗ', recover: 'ΑΝΑΚΑΜΨΗ', prerace: 'ΠΡΙΝ ΤΟΝ ΑΓΩΝΑ', shakeout: 'ΞΕΜΟΥΔΙΑΣΜΑ', race: 'ΑΓΩΝΑΣ',
+  easy: 'ΕΥΚΟΛΟ', easy2: 'ΕΥΚΟΛΟ + STRIDES', quality: 'ΔΙΑΛΕΙΜΜΑΤΙΚΗ', mlr: 'MEDIUM LONG', long: 'ΜΑΚΡΥ', medium: 'ΜΕΤΡΙΟ',
+  strength: 'ΓΥΜΝΑΣΤΗΡΙΟ', rest: 'ΞΕΚΟΥΡΑΣΗ', recover: 'ΑΝΑΚΑΜΨΗ', prerace: 'ΠΡΙΝ ΤΟΝ ΑΓΩΝΑ', shakeout: 'ΞΕΜΟΥΔΙΑΣΜΑ', race: 'ΑΓΩΝΑΣ',
 };
 
 let data = null;
@@ -290,6 +290,7 @@ function viewToday() {
   }
   html += flags(day);
   html += `<p class="desc">${esc(day.desc)}</p>`;
+  if (day.why) html += `<details class="why"><summary>Γιατί αυτή η προπόνηση</summary><p>${esc(day.why)}</p></details>`;
   html += structure(day);
   if (day.adjust) html += `<p class="adjust">${esc(day.adjust)}</p>`;
   if (day.done) html += `<p class="done-note">${esc(doneText(day.done))}</p>`;
@@ -342,7 +343,7 @@ function viewPlan() {
       return `<details class="day ${st.cls} k-${esc(d.kind)}" data-k="d${d.date}"><summary>
           <span class="d">${esc(d.dow.slice(0, 3))}<small>${atNoon(d.date).getDate()}</small></span><span class="t">${esc(d.title)}${d.moved || d.extra || d.scaled ? ' <i class="dot" aria-label="αλλαγμένη"></i>' : ''}</span><span class="n">${nums}</span>
           ${st.text ? `<span class="s">${st.text}</span>` : ''}
-        </summary><div class="body">${flags(d)}<p>${esc(d.desc)}</p>${structure(d)}
+        </summary><div class="body">${flags(d)}<p>${esc(d.desc)}</p>${d.why ? `<p class="why-txt"><b>Γιατί:</b> ${esc(d.why)}</p>` : ''}${structure(d)}
         ${d.done ? `<p class="done-note">${esc(doneText(d.done))}</p>` : ''}${dayActions(d, w, today)}</div></details>`;
     }).join('');
     return `<details class="week${isCur ? ' current' : ''}" data-k="w${w.week_start}"${isCur ? ' open' : ''}>

@@ -1,4 +1,4 @@
-"""Σχεδιασμός προπόνησης για trail 40 km / 3000 m D+ (5 προπονήσεις την εβδομάδα).
+"""Σχεδιασμός προπόνησης για ορεινό αγώνα (Olympus Marathon 44 km / +3350 m), περιοδοποίηση στο periodization.py.
 
 Το module δεν ξέρει τίποτα για τη Garmin: δουλεύει με μια λίστα από "κανονικοποιημένες"
 δραστηριότητες, δηλαδή dicts της μορφής
@@ -10,6 +10,7 @@ from __future__ import annotations
 import statistics
 from datetime import date, datetime, timedelta
 
+import periodization as pz
 import workouts
 
 # --- Όρια του προγράμματος ---------------------------------------------------
@@ -25,16 +26,7 @@ LOW_READINESS = 35
 
 DAYS_GR = ["Δευτέρα", "Τρίτη", "Τετάρτη", "Πέμπτη", "Παρασκευή", "Σάββατο", "Κυριακή"]
 
-# Εβδομαδιαία δομή: ημέρα (0=Δευτέρα) -> (είδος, ποσοστό km, ποσοστό D+)
-TEMPLATE = {
-    1: ("easy", 0.13, 0.08),
-    2: ("quality", 0.16, 0.27),
-    3: ("easy2", 0.11, 0.06),
-    5: ("long", 0.38, 0.43),
-    6: ("medium", 0.22, 0.16),
-}
-# Δευτέρα ενδυνάμωση (48 ώρες πριν την ποιοτική της Τετάρτης), Παρασκευή ξεκούραση πριν το μακρύ.
-REST_DAYS = {0: "strength", 4: "rest"}
+# Η εβδομαδιαία δομή ορίζεται στο config.json (week_template) και στο periodization.py.
 
 DESCENT_TIP = ("Στις κατηφόρες: μικρά γρήγορα βήματα, πόδια κάτω από το σώμα, χαλαρά γόνατα, "
                "μάτια 3–4 μέτρα μπροστά, χωρίς φρένο στις φτέρνες.")
@@ -234,9 +226,11 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
         race = None
     mon0 = monday_of(today)
     race_mon = monday_of(race) if race else None
-    n_weeks = 6 if not race else max(1, min(26, (race_mon - mon0).days // 7 + 1))
+    n_weeks = 6 if not race else max(1, min(40, (race_mon - mon0).days // 7 + 1))
     pace = profile["pace"]
     lthr = int(cfg.get("lthr") or workouts.DEFAULT_LTHR)  # όριο γαλακτικού: δίνει τα bpm κάθε ζώνης
+    week_tpl = list(cfg.get("week_template") or pz.DEFAULT_WEEK)
+    race_name = cfg.get("race_name", "Αγώνας")
 
     # Πρόσφατος αγώνας: δίνω χρόνο ανάκαμψης (π.χ. 7 ώρες αγώνας → 2 εβδομάδες χωρίς ένταση).
     last = cfg.get("last_race") or {}
@@ -261,6 +255,9 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
         long_max = max(LONG_RUN_MAX_KM, min(38.0, float(hist["longest_run_km"]) * 0.7))
 
     peak_min = float(hist.get("peak_4wk_minutes") or 0) * 1.05
+    # Προφίλ: αν οι πρόσφατες εβδομάδες σου είναι πολύ κάτω από τις συνηθισμένες, λιγότερες επαναλήψεις στα διαλείμματα.
+    typ_min = float(hist.get("typical_week_minutes") or 0)
+    q_scale = 0.8 if (typ_min and profile["base_minutes"] < 0.6 * typ_min) else 1.0
     long_max_min = min(300.0, float(hist.get("longest_run_minutes") or 0) * 0.7)
 
     km_level = min(peak_km, max(profile["base_km"], MIN_BASE_KM))
@@ -321,14 +318,19 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                         floor_ratio = min(PEAK_RATIO, base_ratio + 1.5 * i)
                         gain_level = min(peak_gain, max(gain_level * (GROWTH_GAIN if growth == GROWTH_KM else 1.14), km_level * floor_ratio))
                 up_count += 1
-                label = "Ειδική προετοιμασία" if (left is not None and left <= 8) else "Ανάπτυξη"
+                label = pz.PHASE_LABEL[pz.phase_of(left)[0]]
                 wk_km, wk_gain = km_level, gain_level
 
         # Ταβάνι σε χρόνο: ό,τι ώρες την εβδομάδα έχεις ήδη αντέξει (με 5% περιθώριο).
-        if peak_min:
+        # Στις εβδομάδες αποφόρτισης και στο taper το ταβάνι μειώνεται αναλογικά, ώστε η μείωση να είναι πραγματική
+        # (taper: −25% → −45% → αγώνας, Bosquet et al. 2007). Στην ειδική φάση επιτρέπεται +10% για τα μεγάλα μακριά.
+        if peak_min and mode != "recovery":
+            cap = peak_min * ({"down": 0.72, "taper": frac if mode == "taper" else 1.0}.get(mode, 1.0))
+            if mode == "build" and pz.phase_of(left)[0] == "specific":
+                cap *= 1.10
             est = effort(wk_km, wk_gain) * pace
-            if est > peak_min:
-                wk_km, wk_gain = wk_km * peak_min / est, wk_gain * peak_min / est
+            if est > cap:
+                wk_km, wk_gain = wk_km * cap / est, wk_gain * cap / est
 
         days = []
         for dow in range(7):
@@ -347,8 +349,10 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                         kind, km, gain = "shakeout", 4.0, 50
                     elif before == 4:
                         kind, km, gain = "easy", 6.0, 100
-            elif dow in TEMPLATE:
-                kind, fk, fg = TEMPLATE[dow]
+            elif week_tpl[dow] in pz.SHARE:
+                slot = week_tpl[dow]
+                kind = "quality" if slot in ("q1", "q2") else slot
+                fk, fg = pz.SHARE[slot]
                 km, gain = _r5(wk_km * fk), _r10(wk_gain * fg)
                 if kind == "long":
                     km = min(km, long_max)
@@ -356,23 +360,40 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                     if long_max_min and est > long_max_min:
                         km, gain = _r5(km * long_max_min / est), _r10(gain * long_max_min / est)
             else:
-                kind = REST_DAYS.get(dow, "rest")
+                kind = "strength" if week_tpl[dow] == "gym" else "rest"
 
             rec_n = (d - rec_start).days if rec_start and rec_start < d <= rec_end else 0
             if rec_n and kind != "race":
                 wd = d.weekday()
                 if rec_n <= 7:
                     kind, km, gain = ("easy", 4.0, 50) if rec_n in (5, 7) else ("recover", 0.0, 0)
-                elif wd in (1, 3):
+                elif week_tpl[wd] in ("q1", "q2"):
                     kind, km, gain = "easy", 6.0, 80
-                elif wd == 5:
+                elif week_tpl[wd] == "long":
                     kind, km, gain = "easy", 10.0, 150
-                elif wd == 0:
+                elif week_tpl[wd] == "gym":
                     kind, km, gain = "strength", 0.0, 0
                 else:
                     kind, km, gain = "recover", 0.0, 0
 
             title, desc = describe(kind, i, "recovery" if rec_n else mode, left, cfg)
+            why, session, fixed_min = None, None, None
+            slot = week_tpl[dow]
+            if not rec_n and not (race and left == 0):
+                ph, k = pz.phase_of(left)
+                if mode == "taper":
+                    ph = "taper"
+                if slot in ("q1", "q2") and kind == "quality":
+                    title, desc, why = pz.quality(slot, ph, k, mode, q_scale, race_name)
+                elif slot == "mlr" and kind == "mlr":
+                    title, desc, why, fixed_min = pz.mlr(ph, k, mode)
+                    km = max(3.0, _r5(fixed_min / pace - gain / 100.0))
+                elif slot == "gym" and kind == "strength":
+                    title, desc, why, session, fixed_min = pz.gym(ph, mode)
+                elif kind == "long":
+                    why = pz.long_why(ph)
+                elif kind == "easy":
+                    title, desc, why = "Εύκολο τρέξιμο", "Άνετος ρυθμός σε επίπεδο, 40–50 λεπτά. Να μπορείς να μιλάς χωρίς κόπο.", pz.EASY_WHY
             if rec_start and d == rec_start:
                 kind, km, gain = "rest", 0.0, 0
                 title, desc = f"Αγώνας {last.get('km', '')} km", "Ολοκληρώθηκε."
@@ -381,7 +402,11 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 desc = (f"Μπράβο για τα {last.get('km', '')} km! Για τις επόμενες 2–3 μέρες κανένα τρέξιμο: "
                         "περπάτημα 20–30 λεπτά, πολύ νερό, φαγητό με υδατάνθρακες και πρωτεΐνη, και ύπνος.")
             minutes = int(5 * round(effort(km, gain) * pace / 5)) if km > 0 else 0
-            if kind == "strength":
+            if fixed_min and kind != "mlr":
+                minutes = fixed_min
+            elif fixed_min:
+                minutes = fixed_min
+            if kind == "strength" and not fixed_min:
                 minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
             elif kind == "recover" and rec_n and rec_n <= 7:
                 minutes = 30  # ελαφρύ περπάτημα
@@ -395,11 +420,13 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
             if steps:
                 day["steps"] = steps
             if kind == "strength":
-                day["session"] = "mobility" if minutes <= 20 else "eccentric"
+                day["session"] = session or ("mobility" if minutes <= 20 else "eccentric")
+            if why:
+                day["why"] = why
             done = done_by_date.get(d.isoformat())
             if done and d <= today:
                 day["done"] = {"km": round(done["km"], 1), "gain": int(done["gain"]), "minutes": int(done["minutes"])}
-            if d == today and status["low_readiness"] and kind in ("quality", "long", "medium", "easy", "easy2"):
+            if d == today and status["low_readiness"] and kind in ("quality", "long", "medium", "mlr", "easy", "easy2"):
                 day["adjust"] = ("Η ετοιμότητα σου είναι χαμηλή. Αν νιώθεις κουρασμένος, κάνε 30–40 λεπτά πολύ εύκολο τρέξιμο ή ξεκουράσου.")
             days.append(day)
 

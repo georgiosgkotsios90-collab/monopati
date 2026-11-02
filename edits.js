@@ -32,7 +32,7 @@ export function setExtra(e, d, minutes) { if (minutes) e.extras[d] = { minutes }
 export function setScale(e, weekStart, f) { if (f === 1) delete e.scale[weekStart]; else e.scale[weekStart] = f; save(e); }
 export function resetEdits(e) { Object.assign(e, empty()); save(e); }
 
-const CONTENT = ['kind', 'title', 'desc', 'km', 'gain', 'minutes', 'steps', 'impact', 'session', 'adjust'];
+const CONTENT = ['kind', 'title', 'desc', 'why', 'km', 'gain', 'minutes', 'steps', 'impact', 'session', 'adjust'];
 const KEEP_FULL = /^(Ζέσταμα|Αποψύχρανση)$/;
 
 function scaleSteps(steps, f) {
