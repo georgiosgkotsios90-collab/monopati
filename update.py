@@ -132,7 +132,7 @@ def main() -> int:
         plan = planner.build_plan(profile, cfg, today, status, acts)
 
         # Πρωινός έλεγχος ετοιμότητας (HRV, ύπνος, παλμοί ηρεμίας): αλλάζει τη σημερινή προπόνηση αν χρειάζεται.
-        adj = readiness.adjust_today(plan, today.isoformat(), wellness, int(cfg.get("lthr") or 155))
+        adj = readiness.adjust_today(plan, today.isoformat(), wellness, int(cfg.get("lthr") or 155), acts)
         if adj:
             status["advice"].insert(0, f"Σήμερα: «{adj['from']}» έγινε «{adj['to']}» λόγω: {', '.join(adj['reasons'])}.")
             print("Προσαρμογή ετοιμότητας:", adj)
@@ -162,6 +162,18 @@ def main() -> int:
             "lthr": int(cfg.get("lthr") or 155),
             "max_hr": (cfg.get("history") or {}).get("max_hr"),
         }
+        # Σημείωμα προπονητή από το Claude (μόνο αν υπάρχει το secret ANTHROPIC_API_KEY). Δεν αλλάζει την προπόνηση.
+        ai_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        if ai_key and not args.demo:
+            try:
+                import coach
+                text = coach.note(data, today.isoformat(), ai_key, cfg.get("coach_model"))
+                if text:
+                    data["coach_note"] = text
+                    print("Σημείωμα προπονητή: OK")
+            except Exception as e:
+                print(f"[coach] απέτυχε: {type(e).__name__}: {e}", file=sys.stderr)
+
         blob = encrypt(json.dumps(data, ensure_ascii=False).encode("utf-8"), password)
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)

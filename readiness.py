@@ -7,6 +7,10 @@
     Παλμοί ηρ.  ≥ 5 πάνω από τον μέσο όρο 7 ημερών → κόκκινο, ≥ 3 → κίτρινο
     Ετοιμότητα  Garmin < 25 → κόκκινο, < 40 → κίτρινο
 
+    Κατηφόρα   πάνω από max(800 m, 2× τον συνηθισμένο σου) αρνητική υψομετρική τις τελευταίες 48 ώρες → κίτρινο
+                και οι σημερινές κατηφόρες γίνονται «κατέβασμα περπατώντας» (οι τετρακέφαλοι θέλουν 48–72 ώρες
+                μετά από έντονη εκκεντρική καταπόνηση, Eston et al., 2003· Giandolini et al., 2016)
+
 Απόφαση (μόνο για σήμερα):
     2+ κόκκινα          → «πολύ εύκολο 30'» (ή ξεκούραση)
     1 κόκκινο ή 2+ κίτρινα → η δύσκολη μέρα γίνεται εύκολη: διαλειμματική → εύκολο 40',
@@ -17,6 +21,8 @@
 δύσκολη προπόνηση (Kiviniemi et al., 2007· Vesterinen et al., 2016· Javaloyes et al., 2019).
 """
 from __future__ import annotations
+
+from datetime import date, timedelta
 
 import workouts
 
@@ -54,6 +60,46 @@ def signals(w: dict) -> tuple[list[str], list[str]]:
     return red, amber
 
 
+def descent_load(acts: list[dict], today: date) -> tuple[float, float]:
+    """(αρνητική υψομετρική τελευταίων 48 ωρών, συνηθισμένη 48ωρη τιμή των τελευταίων 4 εβδομάδων)."""
+    def loss(a):
+        v = a.get("loss")
+        return float(v if v is not None else (a.get("gain") or 0))
+    runs = [a for a in acts if ("run" in a.get("type", "") or "hik" in a.get("type", ""))]
+    recent = sum(loss(a) for a in runs if today - timedelta(days=2) <= date.fromisoformat(a["date"]) <= today)
+    month = sum(loss(a) for a in runs if today - timedelta(days=30) <= date.fromisoformat(a["date"]) < today - timedelta(days=2))
+    return recent, month / 14.0
+
+
+def _no_downhill(day: dict, lthr: int, original: str) -> None:
+    """Κρατά την ανηφόρα, βγάζει το τρέξιμο στην κατηφόρα."""
+    WALK = "Κατέβασμα περπατώντας: χθες/προχθές είχες πολλή κατηφόρα, δώσε χρόνο στους τετρακέφαλους"
+    title = day["title"]
+    if title.startswith("Κατηφόρες") or title.startswith("Ανάβαση tempo"):
+        m = 25 if title.startswith("Κατηφόρες") else max(20, int("".join(c for c in title.split("tempo")[1].split("'")[0] if c.isdigit()) or 25))
+        main = [workouts._step("Συνεχής ανάβαση tempo", m * 60, "tempo", lthr, "Ανηφόρα σε ρυθμό αγώνα, power hiking στα απότομα"),
+                workouts._free("Κατέβασμα περπατώντας", max(600, m * 40), WALK)]
+        day["steps"] = workouts._wrap([workouts._step("Ζέσταμα", 900, "warm", lthr)], main,
+                                      [workouts._step("Αποψύχρανση", 600, "rec", lthr)], day["minutes"] * 60, lthr)
+        day["title"] = f"Ανάβαση tempo {m}' χωρίς κατηφόρα (προσαρμογή)"
+        day["desc"] = (f"Αντί για «{original}»: ζέσταμα, {m} λεπτά συνεχούς ανάβασης σε ρυθμό αγώνα και κατέβασμα περπατώντας. "
+                       "Η καρδιά δουλεύει κανονικά, οι τετρακέφαλοι ξεκουράζονται από την κατηφόρα.")
+    else:
+        def walk(steps):
+            for st in steps:
+                if "repeat" in st:
+                    walk(st["steps"])
+                elif st.get("hr") is None and "Κατ" in st.get("name", ""):
+                    st["name"], st["note"] = "Κατέβασμα περπατώντας", WALK
+        walk(day.get("steps") or [])
+        if day["kind"] == "long":
+            day["gain"] = int(day.get("gain", 0) * 0.7)
+            day["desc"] = day["desc"] + " Σήμερα διάλεξε διαδρομή με λιγότερη κατηφόρα ή κατέβαινε περπατώντας τα απότομα."
+        else:
+            day["desc"] = day["desc"] + " Σήμερα κατέβαινε περπατώντας μετά από κάθε ανηφόρα."
+        day["title"] = day["title"] + " (χωρίς κατηφόρα)"
+
+
 def _easy(day: dict, minutes: int, title: str, desc: str, lthr: int, band_title: str = "Εύκολο τρέξιμο") -> None:
     day.update({"kind": "easy", "title": title, "desc": desc, "minutes": minutes,
                 "gain": min(day.get("gain", 0), 100), "km": max(1.0, round(minutes / 7.0, 1))})
@@ -61,13 +107,27 @@ def _easy(day: dict, minutes: int, title: str, desc: str, lthr: int, band_title:
     day.pop("session", None)
 
 
-def adjust_today(plan: list[dict], today_iso: str, wellness: dict, lthr: int) -> dict | None:
+def adjust_today(plan: list[dict], today_iso: str, wellness: dict, lthr: int, acts: list[dict] | None = None) -> dict | None:
     """Αλλάζει (στη θέση της) τη σημερινή ημέρα του προγράμματος. Επιστρέφει περίληψη ή None."""
     day = next((d for w in plan for d in w["days"] if d["date"] == today_iso), None)
     if not day or day.get("done") or day.get("kind") == "race" or (day.get("km") or 0) <= 0:
         return None
     red, amber = signals(wellness)
+    heavy_descent = False
+    if acts:
+        recent, usual = descent_load(acts, date.fromisoformat(today_iso))
+        if recent >= max(800.0, 2 * usual):
+            heavy_descent = True
+            amber.append(f"{recent:.0f} m κατηφόρα τις τελευταίες 48 ώρες")
     if not red and len(amber) < 2:
+        if heavy_descent and day["kind"] in ("quality", "long", "mlr", "medium"):
+            original = day["title"]
+            _no_downhill(day, lthr, original)
+            day["adjust"] = "Προσαρμογή: " + amber[-1] + ". Ανηφόρα κανονικά, κατέβασμα περπατώντας."
+            day["why"] = ("Μετά από πολλή κατηφόρα οι τετρακέφαλοι έχουν εκκεντρική μυϊκή βλάβη που χρειάζεται 48–72 ώρες. "
+                          "Η ανηφόρα δεν την επιβαρύνει, η κατηφόρα ναι (Eston et al., 2003· Giandolini et al., 2016).")
+            day["adjusted_from"] = original
+            return {"from": original, "to": day["title"], "reasons": [amber[-1]]}
         return None
     reasons = red + amber
     original = day["title"]

@@ -88,6 +88,9 @@ section > .sec-h { margin-top: 1.4rem; }
 .adjust { margin-top: .85rem; border-left: 4px solid var(--alert); padding-left: .75rem; }
 .done-note { margin-top: .85rem; color: var(--volt); font-weight: 800; }
 .fuel p:last-child { font-size: .93rem; }
+.coach { border-left: 4px solid var(--sky); }
+.coach .tag { color: var(--sky); }
+.coach p + p.muted { margin-top: .5rem; }
 
 /* Γιατί */
 .why { margin-top: .8rem; font-size: .9rem; }

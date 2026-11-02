@@ -297,6 +297,8 @@ function viewToday() {
   html += dayActions(day, week, today);
   html += '</section>';
 
+  if (data.coach_note) html += `<section class="card coach"><p class="tag">ΣΗΜΕΙΩΜΑ ΠΡΟΠΟΝΗΤΗ</p><p>${esc(data.coach_note)}</p><p class="muted small">Από το Claude, με βάση τα σημερινά σου δεδομένα. Δεν αλλάζει την προπόνηση.</p></section>`;
+
   const fuel = day.km > 0 && !day.skipped ? fuelForRun(day.minutes) : null;
   if (fuel) html += `<section class="card fuel"><p class="tag">ΔΙΑΤΡΟΦΗ</p><p>${esc(fuel)}</p></section>`;
 
