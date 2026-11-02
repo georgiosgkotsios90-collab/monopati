@@ -5,13 +5,13 @@
   "race_gain": 3350,
   "days_per_week": 5,
   "week_template": [
-    "rest",
     "q1",
-    "mlr",
     "gym",
+    "mlr",
     "q2",
     "easy",
-    "long"
+    "long",
+    "rest"
   ],
   "history": {
     "peak_week_km": 96,
