@@ -55,6 +55,7 @@ jobs:
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python update.py
 
       - name: Save encrypted data
