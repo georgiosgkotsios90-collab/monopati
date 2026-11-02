@@ -79,6 +79,7 @@ def fetch(email: str, password: str, today: date, days: int = 120, api=None) -> 
     sleep = _safe(api.get_sleep_data, d)
     rhr = _safe(api.get_rhr_day, d)
     hrv = _safe(api.get_hrv_data, d)
+    summary = _safe(api.get_user_summary, d)
 
     wellness = {
         "readiness": _get(ready, "score"),
@@ -86,5 +87,10 @@ def fetch(email: str, password: str, today: date, days: int = 120, api=None) -> 
         "resting_hr": _get(rhr, "allMetrics", "metricsMap", "WELLNESS_RESTING_HEART_RATE", 0, "value"),
         "hrv": _get(hrv, "hrvSummary", "lastNightAvg"),
         "hrv_status": _get(hrv, "hrvSummary", "status"),
+        "hrv_baseline_low": _get(hrv, "hrvSummary", "baseline", "balancedLow"),
+        "hrv_weekly": _get(hrv, "hrvSummary", "weeklyAvg"),
+        "resting_hr_7d": _get(summary, "lastSevenDaysAvgRestingHeartRate"),
     }
+    if wellness.get("resting_hr") is None:
+        wellness["resting_hr"] = _get(summary, "restingHeartRate")
     return acts, {k: v for k, v in wellness.items() if v is not None}

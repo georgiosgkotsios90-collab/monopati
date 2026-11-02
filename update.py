@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import impact  # noqa: E402
+import readiness  # noqa: E402
 import planner  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
@@ -129,6 +130,12 @@ def main() -> int:
         profile = planner.build_profile(acts, today)
         status = planner.build_status(acts, profile, today, wellness)
         plan = planner.build_plan(profile, cfg, today, status, acts)
+
+        # Πρωινός έλεγχος ετοιμότητας (HRV, ύπνος, παλμοί ηρεμίας): αλλάζει τη σημερινή προπόνηση αν χρειάζεται.
+        adj = readiness.adjust_today(plan, today.isoformat(), wellness, int(cfg.get("lthr") or 155))
+        if adj:
+            status["advice"].insert(0, f"Σήμερα: «{adj['from']}» έγινε «{adj['to']}» λόγω: {', '.join(adj['reasons'])}.")
+            print("Προσαρμογή ετοιμότητας:", adj)
 
         load = impact.build(acts, plan, cfg, today, profile)
 
