@@ -1,7 +1,8 @@
 // Service worker: η εφαρμογή ανοίγει και χωρίς σύνδεση, με τα τελευταία δεδομένα που κατέβηκαν.
-const CACHE = 'monopati-v2';
+const CACHE = 'monopati-v3';
 const SHELL = [
-  './', './index.html', './app.js', './vault.js', './style.css',
+  './', './index.html', './app.js', './vault.js', './util.js', './edits.js', './timer.js',
+  './library.js', './gpx.js', './style.css',
   './manifest.webmanifest', './icon-192.png', './icon-512.png',
 ];
 

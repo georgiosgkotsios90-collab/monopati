@@ -394,6 +394,8 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
             }
             if steps:
                 day["steps"] = steps
+            if kind == "strength":
+                day["session"] = "mobility" if minutes <= 20 else "eccentric"
             done = done_by_date.get(d.isoformat())
             if done and d <= today:
                 day["done"] = {"km": round(done["km"], 1), "gain": int(done["gain"]), "minutes": int(done["minutes"])}

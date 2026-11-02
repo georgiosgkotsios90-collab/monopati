@@ -55,13 +55,14 @@ def _normalize(raw) -> list[dict]:
             "name": a.get("activityName") or "",
             "km": round((a.get("distance") or 0) / 1000.0, 2),
             "gain": int(a.get("elevationGain") or 0),
+            "loss": int(a.get("elevationLoss") or 0) if a.get("elevationLoss") is not None else None,
             "minutes": round((a.get("duration") or 0) / 60.0, 1),
             "avg_hr": int(hr) if hr else None,
         })
     return out
 
 
-def fetch(email: str, password: str, today: date, days: int = 60) -> tuple[list[dict], dict]:
+def fetch(email: str, password: str, today: date, days: int = 120) -> tuple[list[dict], dict]:
     """Επιστρέφει (δραστηριότητες, δείκτες ευεξίας). Οι δείκτες ευεξίας είναι προαιρετικοί."""
     api = _login(email, password)
     start = today - timedelta(days=days)

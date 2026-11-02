@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import impact  # noqa: E402
 import planner  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
@@ -64,9 +65,9 @@ def demo_data(today):
     sessions = [(1, 8, 150, "running"), (2, 9, 350, "trail_running"), (3, 7, 100, "running"),
                 (5, 16, 700, "trail_running"), (6, 10, 250, "trail_running")]
     acts = []
-    for w in range(0, 9):
+    for w in range(0, 17):
         wk = planner.monday_of(today) - timedelta(weeks=w)
-        scale = 0.75 + 0.04 * (8 - w)
+        scale = 0.6 + 0.03 * (16 - w)
         for dow, km, gain, typ in sessions:
             d = wk + timedelta(days=dow)
             if d >= today or rnd.random() < 0.1:
@@ -74,8 +75,12 @@ def demo_data(today):
             k = round(km * scale * rnd.uniform(0.92, 1.08), 1)
             g = int(gain * scale * rnd.uniform(0.9, 1.1))
             acts.append({"date": d.isoformat(), "type": typ, "name": "Δοκιμαστικό τρέξιμο",
-                         "km": k, "gain": g, "minutes": round(planner.effort(k, g) * 6.6, 1),
+                         "km": k, "gain": g, "loss": int(g * rnd.uniform(0.9, 1.05)), "minutes": round(planner.effort(k, g) * 6.6, 1),
                          "avg_hr": rnd.randint(138, 158)})
+        cd = wk + timedelta(days=3)
+        if cd < today and w % 2 == 0:
+            acts.append({"date": cd.isoformat(), "type": "cycling", "name": "Ποδήλατο", "km": 25.0,
+                         "gain": 200, "loss": 200, "minutes": 60.0, "avg_hr": 125})
     wellness = {"readiness": 62, "sleep_score": 78, "resting_hr": 49, "hrv": 61, "hrv_status": "BALANCED"}
     return acts, wellness
 
@@ -123,6 +128,8 @@ def main() -> int:
         status = planner.build_status(acts, profile, today, wellness)
         plan = planner.build_plan(profile, cfg, today, status, acts)
 
+        load = impact.build(acts, plan, cfg, today, profile)
+
         race_date = cfg.get("race_date")
         race = None
         if race_date:
@@ -142,6 +149,9 @@ def main() -> int:
             "history": list(reversed(profile["weeks"])),  # από την παλιότερη προς τη νεότερη
             "recent": runs[:10],
             "plan": plan,
+            "impact": load,
+            "lthr": int(cfg.get("lthr") or 155),
+            "max_hr": (cfg.get("history") or {}).get("max_hr"),
         }
         blob = encrypt(json.dumps(data, ensure_ascii=False).encode("utf-8"), password)
         out = Path(args.out)
