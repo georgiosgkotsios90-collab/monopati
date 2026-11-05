@@ -50,6 +50,7 @@ def _normalize(raw) -> list[dict]:
             continue
         hr = a.get("averageHR")
         out.append({
+            "id": a.get("activityId"),
             "date": start[:10],
             "type": (_get(a, "activityType", "typeKey") or "").lower(),
             "name": a.get("activityName") or "",

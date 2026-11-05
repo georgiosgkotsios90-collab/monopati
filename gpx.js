@@ -1,6 +1,7 @@
 // Ανάλυση GPX αγώνα: προφίλ, ανηφόρες/κατηφόρες, εκτίμηση χρόνου και πλάνο διατροφής.
 // Όλα γίνονται στο κινητό. Το GPX αποθηκεύεται απλοποιημένο (ανά 50 m) μόνο σε αυτή τη συσκευή.
 import { esc, nf1, mt, clock, store } from './util.js';
+import { speedAt } from './terrain.js';
 
 const KEY = 'monopati.race';
 const STEP = 50; // μέτρα δειγματοληψίας
@@ -86,7 +87,7 @@ function stepCost(dz, dx) {
   return km * (0.7 + Math.max(0, a - 0.1) * 3); // απότομη: φρενάρισμα, πιο αργά
 }
 
-export function analyse(race, pace) {
+export function analyse(race, pace, model) {
   const { ele, step } = race;
   const n = ele.length;
   const cum = [0]; // λεπτά
@@ -94,8 +95,14 @@ export function analyse(race, pace) {
   for (let i = 1; i < n; i++) {
     const dz = ele[i] - ele[i - 1];
     if (dz > 0) gain += dz; else loss -= dz;
-    const fatigue = 1 + 0.04 * Math.max(0, t / 60 - 2); // επιβράδυνση μετά τις 2 ώρες
-    t += stepCost(dz, step) * pace * fatigue;
+    if (model) {
+      // Προσωπικό μοντέλο: η δική σου ταχύτητα στην κλίση κάθε 50 m, με τη δική σου κόπωση.
+      const fatigue = 1 + model.fatigue.per_hour * Math.max(0, t / 60 - 2);
+      t += step / (speedAt(model, (dz / step) * 100) / fatigue) / 60;
+    } else {
+      const fatigue = 1 + 0.04 * Math.max(0, t / 60 - 2); // επιβράδυνση μετά τις 2 ώρες
+      t += stepCost(dz, step) * pace * fatigue;
+    }
     cum.push(t);
   }
   const km = ((n - 1) * step) / 1000;
@@ -166,14 +173,14 @@ function profileSvg(race, an) {
     <text class="lbl l" x="2" y="${y(an.top) - 4}">${mt(an.top)} m</text></svg>`;
 }
 
-export function viewRaceAnalysis(race, pace, planRace) {
+export function viewRaceAnalysis(race, pace, planRace, model) {
   if (!race) {
     return `<section class="card upload"><h3>Ανάλυση διαδρομής (GPX)</h3>
       <p class="muted">Ανέβασε το GPX του αγώνα για υψομετρικό προφίλ, ανηφόρες, εκτίμηση χρόνου ανά τμήμα και πλάνο διατροφής.</p>
       <label class="btn file">Επιλογή αρχείου GPX<input type="file" id="gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></label>
       <p class="error" id="gpx-err" role="alert"></p></section>`;
   }
-  const an = analyse(race, pace);
+  const an = analyse(race, pace, model);
   const sectors = fuelSectors(race, an);
   const tot = sectors.reduce((a, s) => ({ carbs: a.carbs + s.carbs, ml: a.ml + s.ml, na: a.na + s.na }), { carbs: 0, ml: 0, na: 0 });
   const mismatch = planRace && (Math.abs(an.km - planRace.km) / planRace.km > 0.15 || Math.abs(an.gain - planRace.gain) / planRace.gain > 0.25);
@@ -190,7 +197,7 @@ export function viewRaceAnalysis(race, pace, planRace) {
       <div><b>−${mt(an.loss)}</b><span>m</span></div><div><b>${clock(an.minutes)}</b><span>εκτίμηση</span></div></div>
     ${profileSvg(race, an)}
     ${mismatch ? `<p class="banner info">Το GPX διαφέρει αρκετά από τον αγώνα του προγράμματος (${planRace.km} km, +${planRace.gain} m). Αν άλλαξε η διαδρομή, ενημέρωσε το config.json.</p>` : ''}
-    <p class="muted small">Ο χρόνος βγαίνει από τον ρυθμό προσπάθειας των προπονήσεών σου (${nf1.format(pace)} λ ανά km προσπάθειας), με επιβράδυνση στις απότομες κατηφόρες και κόπωση μετά τις 2 ώρες. Είναι εκτίμηση, όχι στόχος.</p>
+    <p class="muted small">${model ? `Ο χρόνος βγαίνει από τη δική σου ταχύτητα σε κάθε κλίση (ρεαλιστικό σενάριο) και τη δική σου κόπωση (${nf1.format(model.fatigue.per_hour * 100)}% την ώρα μετά τις 2 ώρες), χωρίς στάσεις.` : `Ο χρόνος βγαίνει από τον ρυθμό προσπάθειας των προπονήσεών σου (${nf1.format(pace)} λ ανά km προσπάθειας), με επιβράδυνση στις απότομες κατηφόρες και κόπωση μετά τις 2 ώρες.`} Είναι εκτίμηση, όχι στόχος.</p>
     <p class="kpi-line"><b>${an.climbs.length}</b> μεγάλες ανηφόρες (πάνω από 100 m)${an.climbs.length ? `: ${an.climbs.map((c) => `km ${nf1.format(c.from)} (+${mt(c.gain)} m, ${nf1.format(c.grade)}%)`).join(' · ')}` : ''}</p>
     <details class="tbl"><summary>Τμήματα διαδρομής (${an.segs.length})</summary>
       <div class="scroll"><table><thead><tr><th>km</th><th>Υψομ.</th><th>Κλίση</th><th>Χρόνος</th><th>Άφιξη</th></tr></thead><tbody>${segRows}</tbody></table></div></details>

@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import impact  # noqa: E402
+import terrain  # noqa: E402
 import readiness  # noqa: E402
 import planner  # noqa: E402
 
@@ -45,6 +46,25 @@ def encrypt(plain: bytes, password: str) -> dict:
     ct = AESGCM(key).encrypt(iv, plain, None)  # ciphertext + tag
     b64 = lambda x: base64.b64encode(x).decode("ascii")  # noqa: E731
     return {"v": 1, "iter": PBKDF2_ITERATIONS, "salt": b64(salt), "iv": b64(iv), "ct": b64(ct)}
+
+
+def decrypt(blob: dict, password: str) -> bytes:
+    password = unicodedata.normalize("NFC", password)
+    b = lambda x: base64.b64decode(x)  # noqa: E731
+    key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b(blob["salt"]),
+                     iterations=int(blob.get("iter", PBKDF2_ITERATIONS))).derive(password.encode("utf-8"))
+    return AESGCM(key).decrypt(b(blob["iv"]), b(blob["ct"]), None)
+
+
+def load_cache(path: Path, password: str) -> dict:
+    """Κρυπτογραφημένη cache με τα κομμάτια των τρεξιμάτων (για να μην τα κατεβάζουμε κάθε μέρα)."""
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(decrypt(json.loads(path.read_text(encoding="utf-8")), password))
+    except Exception as e:
+        print(f"[cache] δεν διαβάστηκε, ξεκινά από την αρχή: {type(e).__name__}", file=sys.stderr)
+        return {}
 
 
 def notify(topic: str | None, title: str, message: str, priority: int = 3) -> None:
@@ -75,13 +95,16 @@ def demo_data(today):
                 continue
             k = round(km * scale * rnd.uniform(0.92, 1.08), 1)
             g = int(gain * scale * rnd.uniform(0.9, 1.1))
-            acts.append({"date": d.isoformat(), "type": typ, "name": "Δοκιμαστικό τρέξιμο",
+            acts.append({"id": f"d{w}{dow}", "date": d.isoformat(), "type": typ, "name": "Δοκιμαστικό τρέξιμο",
                          "km": k, "gain": g, "loss": int(g * rnd.uniform(0.9, 1.05)), "minutes": round(planner.effort(k, g) * 6.6, 1),
                          "avg_hr": rnd.randint(138, 158)})
         cd = wk + timedelta(days=3)
         if cd < today and w % 2 == 0:
             acts.append({"date": cd.isoformat(), "type": "cycling", "name": "Ποδήλατο", "km": 25.0,
                          "gain": 200, "loss": 200, "minutes": 60.0, "avg_hr": 125})
+    race = today - timedelta(days=5)
+    acts.append({"id": "race", "date": race.isoformat(), "type": "trail_running", "name": "Δοκιμαστικός αγώνας 53 km",
+                 "km": 53.0, "gain": 2900, "loss": 2900, "minutes": 420.0, "avg_hr": 146})
     wellness = {"readiness": 62, "sleep_score": 78, "resting_hr": 49, "hrv": 61, "hrv_status": "BALANCED"}
     return acts, wellness
 
@@ -139,6 +162,24 @@ def main() -> int:
 
         load = impact.build(acts, plan, cfg, today, profile)
 
+        # Προσωπικό μοντέλο κλίσης, durability και πρόβλεψη αγώνα (από τα δεδομένα ανά δευτερόλεπτο του Garmin).
+        cache_path = ROOT / "cache.enc"
+        ter = None
+        try:
+            if args.demo:
+                cache = terrain.demo_cache(acts)
+            else:
+                cache = load_cache(cache_path, password)
+                n_new = terrain.update_cache(cache, acts, api, today)
+                print(f"Ανάλυση κλίσης: {n_new} νέα τρεξίματα, {len(cache.get('acts', {}))} συνολικά")
+            ter = terrain.build(cache, cfg, today)
+            if not args.demo:
+                cache_path.write_text(json.dumps(encrypt(json.dumps(cache).encode("utf-8"), password)), encoding="utf-8")
+        except Exception:
+            traceback.print_exc()
+        if ter and ter.get("prediction") and load.get("readiness"):
+            load["readiness"]["est_minutes"] = ter["prediction"]["scenarios"]["real"]["minutes"]
+
         race_date = cfg.get("race_date")
         race = None
         if race_date:
@@ -159,6 +200,7 @@ def main() -> int:
             "recent": runs[:10],
             "plan": plan,
             "impact": load,
+            "terrain": ter,
             "lthr": int(cfg.get("lthr") or 155),
             "max_hr": (cfg.get("history") or {}).get("max_hr"),
         }

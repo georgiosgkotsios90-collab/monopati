@@ -323,3 +323,31 @@ select, input[type="number"], input[inputmode], input[type="password"] { backgro
 @media (min-width: 640px) {
   .tiles.compact { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* Πρόβλεψη αγώνα, κλίση, durability */
+.scen { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; text-align: center; margin: .3rem 0 .9rem; }
+.scen div { background: var(--s2); border-radius: 14px; padding: .6rem .3rem; }
+.scen .main { background: rgba(200, 240, 74, .12); box-shadow: inset 0 0 0 2px var(--volt); }
+.scen span { display: block; font-size: .72rem; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.scen b { display: block; font-size: 1.45rem; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.scen small { color: var(--muted); font-size: .75rem; }
+table.pred td small { display: block; }
+table.pred tr.cut td:first-child { font-weight: 800; }
+table.pred td { white-space: normal; vertical-align: top; }
+.ok { color: var(--volt); } .warn { color: #FFC24A; } .bad { color: var(--alert); }
+small.ok, small.warn, small.bad, b.ok, b.warn, b.bad { font-weight: 800; }
+.card h4 { font-size: .9rem; margin: 1rem 0 .3rem; color: var(--muted); }
+.chart .rng { fill: var(--muted); opacity: .5; }
+.chart .target { stroke: var(--sky); stroke-dasharray: 3 4; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.chart .now { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart .lbl.t { fill: var(--sky); text-anchor: end; font-weight: 700; }
+.chart .dc.ok { fill: var(--volt); } .chart .dc.warn { fill: #FFC24A; } .chart .dc.bad { fill: var(--alert); }
+.lg.rng { width: 4px; height: 12px; }
+.lchart .tsb { fill: none; stroke: var(--sky); stroke-width: 1.6; vector-effect: non-scaling-stroke; opacity: .9; }
+.lchart .zero { stroke: var(--s3); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.lchart .race { stroke: var(--hot); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.lchart .band { fill: rgba(92, 200, 255, .14); }
+.lchart .tsbdot { fill: var(--sky); stroke: var(--bg); stroke-width: 2; }
+.lg.tsb { background: var(--sky); }
+.lg.band { background: rgba(92, 200, 255, .4); height: 10px; width: 10px; }
+.kpi-line b.ok { color: var(--volt); } .kpi-line b.warn { color: #FFC24A; } .kpi-line b.bad { color: var(--alert); }

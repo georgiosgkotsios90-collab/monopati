@@ -4,6 +4,7 @@ import { loadEdits, applyEdits, swapDays, toggleSkip, setExtra, setScale, resetE
 import { runSession, stepsToItems } from './timer.js';
 import { viewLibrary, bindLibrary, startSession, fuelForRun } from './library.js';
 import { viewRaceAnalysis, bindRaceAnalysis, loadRace } from './gpx.js';
+import { viewPrediction, viewGrade, viewDurability } from './terrain.js';
 
 const app = document.getElementById('app');
 const tabs = document.getElementById('tabs');
@@ -375,6 +376,7 @@ function viewRace() {
     html += `<section class="card countdown"><div><b>${n}</b><span>ημέρες</span></div><div><b>${Math.floor(n / 7)}</b><span>εβδομάδες</span></div>
       ${rd ? `<div><b>${clock(rd.est_minutes)}</b><span>εκτίμηση χρόνου</span></div>` : ''}</section>`;
   }
+  html += viewPrediction(data.terrain, race);
   if (rd) {
     html += `<section class="card readiness"><div class="rd-head">${ring(rd.score)}<div><h3>Ετοιμότητα αγώνα</h3>
       <p class="muted small">Πού θα είσαι την ημέρα του αγώνα αν ακολουθήσεις το πρόγραμμα. Η φόρμα και η φρεσκάδα είναι πρόβλεψη. Τα υπόλοιπα δείχνουν πού είσαι σήμερα.</p></div></div>
@@ -382,7 +384,7 @@ function viewRace() {
         <div class="bar"><i style="width:${p.score}%"></i></div><small>${esc(p.value)}</small></li>`).join('')}</ul></section>`;
     html += projectionCard(rd);
   }
-  html += viewRaceAnalysis(loadRace(), (data.profile && data.profile.pace) || 7, race);
+  html += viewRaceAnalysis(loadRace(), (data.profile && data.profile.pace) || 7, race, data.terrain && data.terrain.model);
   return html;
 }
 
@@ -395,6 +397,9 @@ function projectionCard(rd) {
   const max = Math.max(rd.target_ctl * 1.15, ...pts.map((p) => p.ctl)) || 1;
   const x = (i) => (i / (pts.length - 1)) * W;
   const y = (v) => top + (H - top - bot) * (1 - v / max);
+  const verdict = rd.race_tsb < 0 ? `Με το πρόγραμμα φτάνεις στον αγώνα με φρεσκάδα <b>${nf0.format(rd.race_tsb)}</b>, δηλαδή ακόμα κουρασμένος. Η αποκλιμάκωση θέλει λίγο περισσότερη ξεκούραση.`
+    : rd.race_tsb > 25 ? `Φρεσκάδα <b>+${nf0.format(rd.race_tsb)}</b> την ημέρα του αγώνα: πολύ ξεκούραστος, με κίνδυνο να χαθεί λίγη φόρμα.`
+      : `Φρεσκάδα <b>+${nf0.format(rd.race_tsb)}</b> την ημέρα του αγώνα, μέσα στο ιδανικό 0 έως +25: η αποκλιμάκωση σε φέρνει φρέσκο χωρίς να χάσεις φόρμα.`;
   const path = (arr, off) => arr.map((p, i) => `${i ? 'L' : 'M'}${x(i + off).toFixed(1)},${y(p.ctl).toFixed(1)}`).join(' ');
   const t = y(rd.target_ctl);
   const lbl = [];
@@ -404,7 +409,28 @@ function projectionCard(rd) {
       <line class="target" x1="0" x2="${W}" y1="${t}" y2="${t}"/><text class="lbl t" x="${W - 4}" y="${t - 6}">στόχος ${rd.target_ctl}</text>
       <path class="ctl" d="${path(hist, 0)}"/><path class="ctl proj" d="M${x(hist.length - 1)},${y(hist[hist.length - 1].ctl)} ${path(pr, hist.length).replace(/^M/, 'L')}"/>
       <line class="now" x1="${x(hist.length - 1)}" x2="${x(hist.length - 1)}" y1="${top}" y2="${H - bot}"/>${lbl.join('')}</svg>
-    <p class="legend"><i class="lg ctl"></i>Φόρμα μέχρι σήμερα <i class="lg proj"></i>Με το πρόγραμμα</p></section>`;
+    <p class="legend"><i class="lg ctl"></i>Φόρμα μέχρι σήμερα <i class="lg proj"></i>Με το πρόγραμμα</p>
+    ${freshChart(pr, rd)}<p class="small">${verdict}</p></section>`;
+}
+
+// Φρεσκάδα τις τελευταίες 8 εβδομάδες πριν τον αγώνα: εδώ φαίνεται αν η αποκλιμάκωση σε φέρνει φρέσκο.
+function freshChart(pr, rd) {
+  if (!data.race) return '';
+  const end = pr.findIndex((p) => p.date === data.race.date);
+  if (end < 7) return '';
+  const pts = pr.slice(Math.max(0, end - 56), end); // μέχρι το πρωί του αγώνα, πριν μετρήσει ο ίδιος ο αγώνας
+  const W = 700, H = 150, top = 14, bot = 26;
+  const lo = Math.min(-10, ...pts.map((p) => p.tsb)) - 5, hi = Math.max(30, ...pts.map((p) => p.tsb)) + 5;
+  const x = (i) => (i / (pts.length - 1)) * W;
+  const y = (v) => top + (H - top - bot) * (1 - (v - lo) / (hi - lo));
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.tsb).toFixed(1)}`).join(' ');
+  const lbl = pts.map((p, i) => ((pts.length - 1 - i) % 14 === 0 ? `<text class="lbl" x="${Math.min(W - 30, Math.max(30, x(i)))}" y="${H - 6}">${esc(shortDate(p.date))}</text>` : '')).join('');
+  return `<h4>Φρεσκάδα πριν τον αγώνα</h4>
+    <svg class="lchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Φρεσκάδα τις 8 εβδομάδες πριν τον αγώνα. Την ημέρα του αγώνα ${nf0.format(rd.race_tsb)}">
+      <rect class="band" x="0" y="${y(25)}" width="${W}" height="${y(0) - y(25)}"/>
+      <line class="zero" x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}"/>
+      <path class="tsb" d="${d}"/><circle class="tsbdot" cx="${x(pts.length - 1)}" cy="${y(rd.race_tsb)}" r="6"/>${lbl}</svg>
+    <p class="legend"><i class="lg tsb"></i>Φρεσκάδα με το πρόγραμμα <i class="lg band"></i>Ιδανική ζώνη αγώνα (0 έως +25)</p>`;
 }
 
 // --- Φόρμα -----------------------------------------------------------------------
@@ -490,6 +516,8 @@ function viewForm() {
     html += fitnessChart();
     html += impactWeeks();
   }
+  html += viewDurability(data.terrain);
+  html += viewGrade(data.terrain);
   html += barChart(items, 'hours', 'Ώρες τρεξίματος ανά εβδομάδα', (v) => nf1.format(v));
   html += barChart(items, 'gain', 'Θετική υψομετρική ανά εβδομάδα (m)');
   html += '<p class="legend"><i class="lg act"></i>Όσα έτρεξες <i class="lg plan"></i>Πρόγραμμα</p>';
