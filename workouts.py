@@ -23,6 +23,30 @@ BANDS = {
 }
 
 
+# Ζώνες από τα νορβηγικά πρωτόκολλα, ως ποσοστό των μέγιστων παλμών (HRmax).
+MAX_BANDS = {
+    "vo2": (0.90, 0.95, "Zone 5: VO2max (90–95% HRmax)"),
+    "lt2": (0.82, 0.87, "Zone 4: Κατώφλι LT2 (82–87% HRmax)"),
+    "sublt": (0.80, 0.85, "Zone 4: Υπο-κατώφλι (80–85% HRmax)"),
+}
+LTHR_TO_MAX = 0.833  # LTHR / HRmax όταν δεν είναι γνωστοί οι μέγιστοι παλμοί (155 / 186)
+
+
+def _mstep(name: str, sec: int, band: str, lthr: int, hrmax: int | None, note: str | None = None) -> dict:
+    lo, hi, zone = MAX_BANDS[band]
+    hm = hrmax or round(lthr / LTHR_TO_MAX)
+    s = {"name": name, "sec": int(sec), "zone": zone, "hr": [round(lo * hm), round(hi * hm)],
+         "lvl": round((lo + hi) / 2 * hm / lthr, 2)}
+    if note:
+        s["note"] = note
+    return s
+
+
+def _effort(name: str, sec: int, lvl: float, note: str) -> dict:
+    """Σύντομο έντονο βήμα με στόχο την αίσθηση (RPE): οι παλμοί δεν προλαβαίνουν να ανέβουν."""
+    return {"name": name, "sec": int(sec), "lvl": lvl, "zone": None, "hr": None, "note": note}
+
+
 def _step(name: str, sec: int, band: str, lthr: int, note: str | None = None) -> dict:
     lo, hi, zone = BANDS[band]
     s = {"name": name, "sec": int(sec), "lvl": round((lo + hi) / 2, 2), "zone": zone,
@@ -60,7 +84,7 @@ def _num(pattern: str, text: str, default: int) -> int:
     return int(m.group(1)) if m else default
 
 
-def build(title: str, minutes: int, lthr: int = DEFAULT_LTHR) -> list | None:
+def build(title: str, minutes: int, lthr: int = DEFAULT_LTHR, hrmax: int | None = None) -> list | None:
     """Επιστρέφει τη δομή της προπόνησης ή None (ξεκούραση, ενδυνάμωση, αγώνας)."""
     total = int(minutes) * 60
 
@@ -74,6 +98,38 @@ def build(title: str, minutes: int, lthr: int = DEFAULT_LTHR) -> list | None:
         return _wrap([_step("Ζέσταμα", 300, "rec", lthr)], [], [cool(5)], total, lthr, band="warm", name="Εύκολο")
     if title.startswith(("Εύκολο στην άσφαλτο", "Εύκολο τρέξιμο", "Μέτριο")):
         return _wrap([warm(5)], [], [cool(5)], total, lthr)
+    if title.startswith("Νορβηγικό"):
+        n = _num(r"(\d+)×", title, 4)
+        m = _num(r"×(\d+)'", title, 4)
+        main = [_rep(n, [_free("Ανέβασμα παλμών", 90, "Κανόνας 90″: όχι σπριντ, ανέβασε σταδιακά την ένταση στην ανηφόρα 6–10%"),
+                         _mstep("VO2max στην ανηφόρα", m * 60 - 90, "vo2", lthr, hrmax, "Σταθερά στο 90–95% HRmax ως το τέλος, RPE 8,5/10"),
+                         _free("Χαλαρό τρέξιμο", 180, "Κατέβα ή τρέξε χαλαρά, πλήρης ανάσα")])]
+        main[0]["steps"][0]["lvl"] = 0.95
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Micro 30/15"):
+        n = _num(r"3×(\d+)", title, 10)
+        blk = _rep(n, [_effort("30″ δυνατά", 30, 1.12, "RPE 9/10, ο παλμός ανεβαίνει σταδιακά στο 90–95% HRmax"),
+                       _free("15″ χαλαρά", 15, "Πολύ αργό τρέξιμο ή στάση")])
+        sep = _free("Χαλαρό ανάμεσα στα σετ", 180, "3 λεπτά χαλαρό τρέξιμο")
+        main = [blk, sep, _rep(n, [dict(x) for x in blk["steps"]]), dict(sep), _rep(n, [dict(x) for x in blk["steps"]])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Bakken ανηφόρες"):
+        n = _num(r"(\d+)×", title, 15)
+        sec = _num(r"×(\d+)″", title, 45)
+        main = [_rep(n, [_effort("Απότομη ανηφόρα", sec, 1.14, "Πολύ δυνατά με καλή τεχνική, RPE 9/10"),
+                         _free("Περπάτημα κάτω", 70, "Κατέβα περπατώντας, 60–75″")])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Bakken κατώφλι"):
+        n = _num(r"(\d+)×", title, 10)
+        main = [_rep(n, [_mstep("Κατώφλι LT2", 180, "lt2", lthr, hrmax, "«Σκληρό αλλά ελεγχόμενο», να μπορείς να κάνεις άλλα δύο"),
+                         _free("Χαλαρό τρέξιμο", 60, "Ενεργή ανάκαμψη")])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Bakken μακρύ κατώφλι"):
+        n = _num(r"(\d+)×", title, 5)
+        m = _num(r"×(\d+)'", title, 6)
+        main = [_rep(n, [_mstep("Υπο-κατώφλι", m * 60, "sublt", lthr, hrmax, "Σταθερή ένταση σε κυματιστό έδαφος, όχι αγώνας"),
+                         _free("Πολύ αργό τρέξιμο", 90, "Ενεργή ανάκαμψη")])]
+        return _wrap([warm(15)], main, [cool(10)], total, lthr)
     if title.startswith("Ανηφορικά σπριντ"):
         n = _num(r"(\d+)×", title, 8)
         main = [_rep(n, [_step("Σπριντ σε ανηφόρα", 12, "stride", lthr, "Απότομη ανηφόρα 8–12%, σχεδόν τέρμα, χαλαρό πάνω σώμα"),

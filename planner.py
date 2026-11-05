@@ -229,6 +229,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     n_weeks = 6 if not race else max(1, min(40, (race_mon - mon0).days // 7 + 1))
     pace = profile["pace"]
     lthr = int(cfg.get("lthr") or workouts.DEFAULT_LTHR)  # όριο γαλακτικού: δίνει τα bpm κάθε ζώνης
+    hrmax = int((cfg.get("history") or {}).get("max_hr") or 0) or None  # μέγιστοι παλμοί για τα νορβηγικά πρωτόκολλα
     week_tpl = list(cfg.get("week_template") or pz.DEFAULT_WEEK)
     race_name = cfg.get("race_name", "Αγώνας")
 
@@ -258,7 +259,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     # Προφίλ: αν οι πρόσφατες εβδομάδες σου είναι πολύ κάτω από τις συνηθισμένες, λιγότερες επαναλήψεις στα διαλείμματα.
     typ_min = float(hist.get("typical_week_minutes") or 0)
     q_scale = 0.8 if (typ_min and profile["base_minutes"] < 0.6 * typ_min) else 1.0
-    long_max_min = min(300.0, float(hist.get("longest_run_minutes") or 0) * 0.7)
+    long_max_min = min(float(pz.LONG_MAX_MIN), float(hist.get("longest_run_minutes") or 0) * 0.7 or pz.LONG_MAX_MIN)
 
     km_level = min(peak_km, max(profile["base_km"], MIN_BASE_KM))
     gain_level = min(peak_gain, max(profile["base_gain"], km_level * 12))
@@ -406,11 +407,17 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 minutes = fixed_min
             elif fixed_min:
                 minutes = fixed_min
+            if kind == "quality" and minutes > pz.QUALITY_MAX_MIN:
+                # Διαλειμματικές: έως 1:40 συνολικά. Τα km μειώνονται αναλογικά.
+                km, gain = _r5(km * pz.QUALITY_MAX_MIN / minutes), _r10(gain * pz.QUALITY_MAX_MIN / minutes)
+                minutes = pz.QUALITY_MAX_MIN
+            if kind == "long" and minutes > pz.LONG_MAX_MIN:
+                minutes = pz.LONG_MAX_MIN
             if kind == "strength" and not fixed_min:
                 minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
             elif kind == "recover" and rec_n and rec_n <= 7:
                 minutes = 30  # ελαφρύ περπάτημα
-            steps = workouts.build(title, minutes, lthr) if (km > 0 and kind != "race") else None
+            steps = workouts.build(title, minutes, lthr, hrmax) if (km > 0 and kind != "race") else None
             if steps:
                 minutes = max(minutes, int(round(workouts.total_sec(steps) / 60)))
             day = {
