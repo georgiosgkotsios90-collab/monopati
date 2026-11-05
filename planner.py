@@ -413,6 +413,10 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 minutes = pz.QUALITY_MAX_MIN
             if kind == "long" and minutes > pz.LONG_MAX_MIN:
                 minutes = pz.LONG_MAX_MIN
+            if kind == "easy" and not rec_n and not (race and left == 0) and minutes < pz.EASY_MIN_MIN:
+                # Εύκολο τρέξιμο: τουλάχιστον 40 λεπτά (εκτός ανάκαμψης μετά από αγώνα και εβδομάδας αγώνα).
+                minutes = pz.EASY_MIN_MIN
+                km = max(km, _r5(minutes / pace - gain / 100.0))
             if kind == "strength" and not fixed_min:
                 minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
             elif kind == "recover" and rec_n and rec_n <= 7:

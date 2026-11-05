@@ -5,10 +5,10 @@
   "race_gain": 3350,
   "days_per_week": 5,
   "week_template": [
-    "easy",
     "q1",
-    "mlr",
     "gym",
+    "mlr",
+    "easy",
     "q2",
     "long",
     "rest"
