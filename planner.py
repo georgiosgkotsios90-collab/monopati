@@ -236,13 +236,19 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     # Πρόσφατος αγώνας: δίνω χρόνο ανάκαμψης (π.χ. 7 ώρες αγώνας → 2 εβδομάδες χωρίς ένταση).
     last = cfg.get("last_race") or {}
     rec_start = rec_end = None
+    post_recovery = False  # η ανάκαμψη μόλις τελείωσε: η πρώτη εβδομάδα ξεκινά από το 80% και ανεβαίνει
     if last.get("date"):
         lr = to_date(last["date"])
         hours = float(last.get("hours") or 0)
         rdays = 14 if hours >= 6 else 10 if hours >= 4 else 7 if hours >= 2 else 4
         end = monday_of(lr + timedelta(days=rdays)) + timedelta(days=6)
+        if last.get("recovery_until"):
+            # Χειροκίνητο τέλος ανάκαμψης (config.json → last_race.recovery_until), π.χ. για να ξεκινήσει νωρίτερα η ανάπτυξη.
+            end = to_date(last["recovery_until"])
         if end >= today:
             rec_start, rec_end = lr, end
+        elif (today - end).days <= 7:
+            post_recovery = True
 
     # Όρια από το ιστορικό σου (TrainingPeaks): ό,τι έχεις ήδη αντέξει καθορίζει το ταβάνι.
     hist = cfg.get("history") or {}
@@ -265,11 +271,11 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     gain_level = min(peak_gain, max(profile["base_gain"], km_level * 12))
     base_ratio = gain_level / km_level
     # Μετά από αγώνα το φορτίο της εβδομάδας είναι φυσιολογικά υψηλό και δεν σημαίνει υπερπροπόνηση.
-    if status["reduce"] and not rec_start:
+    if status["reduce"] and not rec_start and not post_recovery:
         km_level *= 0.85
         gain_level *= 0.85
-    skip_growth = status["hold"] and not rec_start
-    in_recovery = False
+    skip_growth = status["hold"] and not rec_start and not post_recovery
+    in_recovery = post_recovery
 
     done_by_date: dict[str, dict] = {}
     for a in acts:
@@ -304,8 +310,13 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 gain_level *= 0.8
                 in_recovery = False
             is_down = i > 0 and ((left is not None and left > 3 and (left - 3) % 4 == 0) or (left is None and i % 4 == 3))
+            if post_recovery:
+                # Η ανάκαμψη τελείωσε νωρίτερα: η πρώτη εβδομάδα είναι ελαφριά επιστροφή και το πρόγραμμα
+                # προχωρά μία εβδομάδα μπροστά, χωρίς δεύτερη αποφόρτιση αμέσως μετά.
+                is_down = i == 0 or (is_down and i > 1)
             if is_down:
-                mode, label = "down", "Αποφόρτιση"
+                mode = "down"
+                label = "Επιστροφή στην προπόνηση" if (post_recovery and i == 0) else "Αποφόρτιση"
                 wk_km, wk_gain = km_level * 0.7, gain_level * 0.7
             else:
                 mode = "build"

@@ -29,7 +29,8 @@
   "last_race": {
     "date": "2026-10-31",
     "km": 53,
-    "hours": 7
+    "hours": 7,
+    "recovery_until": "2026-11-08"
   },
   "lthr": 155,
   "garmin_sync": true,
