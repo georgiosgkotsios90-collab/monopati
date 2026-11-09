@@ -14,17 +14,22 @@
     "rest"
   ],
   "history": {
-    "peak_week_km": 96,
+    "peak_week_km": 102,
     "peak_4wk_km": 84,
     "typical_week_km": 67,
     "longest_run_km": 53.1,
-    "longest_run_hours": 6.7,
-    "max_hr": 186,
+    "longest_run_hours": 7.0,
+    "max_hr": 187,
     "from_date": "2024-04-01",
-    "to_date": "2025-12-29",
+    "to_date": "2026-11-08",
     "peak_4wk_minutes": 490,
     "typical_week_minutes": 416,
-    "longest_run_minutes": 403
+    "longest_run_minutes": 418,
+    "peak_week_gain": 3600,
+    "lthr_garmin": 167,
+    "lthr_garmin_date": "2026-10-08",
+    "vo2max": 54,
+    "sources": "TrainingPeaks 2020-12 → 2025-12 και Garmin Connect 2025-12 → 2026-11"
   },
   "last_race": {
     "date": "2026-10-31",
@@ -32,7 +37,7 @@
     "hours": 7,
     "recovery_until": "2026-11-08"
   },
-  "lthr": 155,
+  "lthr": 165,
   "garmin_sync": true,
   "garmin_sync_days": 7,
   "race_start": "06:05",

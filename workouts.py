@@ -17,6 +17,7 @@ BANDS = {
     "warm": (0.65, 0.77, "Zone 1: Recovery"),
     "easy": (0.75, 0.86, "Zone 1: Recovery-Zone 2: Aerobic"),
     "tempo": (0.90, 0.94, "Zone 3: Tempo"),
+    "ladder": (0.92, 0.97, "Zone 4: SubThreshold"),
     "thresh": (0.95, 1.00, "Zone 4: SubThreshold"),
     "hill": (1.00, 1.06, "Zone 5A-5B: Threshold-Aerobic Capacity"),
     "stride": (1.06, 1.155, "Zone 5C: Anaerobic Capacity"),
@@ -124,6 +125,16 @@ def build(title: str, minutes: int, lthr: int = DEFAULT_LTHR, hrmax: int | None 
         main = [_rep(n, [_mstep("Κατώφλι LT2", 180, "lt2", lthr, hrmax, "«Σκληρό αλλά ελεγχόμενο», να μπορείς να κάνεις άλλα δύο"),
                          _free("Χαλαρό τρέξιμο", 60, "Ενεργή ανάκαμψη")])]
         return _wrap([warm(15)], main, [cool(10)], total, lthr)
+    if title.startswith("Σκάλα κατωφλίου"):
+        six = _num(r"(\d+)×6'", title, 3)
+        ez = lambda s=60: _free("Χαλαρό τρέξιμο", s, "Ενεργή ανάκαμψη")  # noqa: E731
+        main = [_rep(2, [_effort("Ζωηρά βήματα", 30, 1.08, "Χαλαρά γρήγορα, όχι σπριντ"), _step("Εύκολο", 120, "rec", lthr)])]
+        if "10'+" in title:
+            main += [_step("Κατώφλι 10′", 600, "ladder", lthr, "Λίγο κάτω από το κατώφλι, σταθερά"), ez(120)]
+        main += [_rep(six, [_step("Κατώφλι 6′", 360, "ladder", lthr, "Λίγο κάτω από το κατώφλι"), ez()]),
+                 _rep(3, [_step("Κατώφλι 3′", 180, "thresh", lthr, "Στο κατώφλι, σκληρό αλλά ελεγχόμενο"), ez()]),
+                 _rep(3, [_effort("Ζωηρό 1′", 60, 1.05, "Λίγο πιο γρήγορα από το κατώφλι, RPE 8/10"), ez()])]
+        return _wrap([warm(10)], main, [cool(10)], total, lthr)
     if title.startswith("Bakken μακρύ κατώφλι"):
         n = _num(r"(\d+)×", title, 5)
         m = _num(r"×(\d+)'", title, 6)

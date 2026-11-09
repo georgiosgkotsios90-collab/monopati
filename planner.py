@@ -257,6 +257,9 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     if hist.get("peak_4wk_km"):
         peak_km = max(PEAK_KM, min(90.0, float(hist["peak_4wk_km"]) * 1.03))
         peak_gain = max(PEAK_GAIN, min(3200.0, peak_km * 37))
+    if hist.get("peak_week_gain"):
+        # Ταβάνι υψομετρικής από ό,τι έχεις ήδη αντέξει (Garmin/TrainingPeaks), με 10% περιθώριο ασφαλείας.
+        peak_gain = max(peak_gain, min(4000.0, float(hist["peak_week_gain"]) * 0.9))
         typical = float(hist.get("typical_week_km") or 0)
     if hist.get("longest_run_km"):
         long_max = max(LONG_RUN_MAX_KM, min(38.0, float(hist["longest_run_km"]) * 0.7))

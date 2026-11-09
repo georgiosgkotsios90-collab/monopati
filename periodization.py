@@ -96,12 +96,38 @@ def quality(slot: str, phase: str, k: int, mode: str, scale: float, race: str) -
                 f"Το {race} έχει περίπου 2.800 m συνεχούς ανάβασης στα πρώτα 21 km. Μεγάλα διαστήματα ανηφόρας στο κατώφλι "
                 "προπονούν ακριβώς αυτή την απαίτηση και την εναλλαγή τρεξίματος/power hiking (Seiler, 2010· Koop, 2016).")
 
-    # q2 (Παρασκευή): πάντα κατώφλι.
+    # q2 (Παρασκευή): πάντα κατώφλι. Εναλλαγή Bakken με τη «σκάλα» που έκανες με το Tzanetakis Lab (2024).
     if phase == "base":
-        return _long_threshold(k, mode, scale)
-    if k % 2 == 0:
+        return _long_threshold(k, mode, scale) if k % 2 == 0 else _ladder(phase, k, mode, scale)
+    pick = k % 3
+    if pick == 0:
         return _short_threshold(k, mode, scale, "q2")
+    if pick == 1:
+        return _ladder(phase, k, mode, scale)
     return _long_threshold(k, mode, scale, rolling=(phase == "specific"))
+
+
+LADDER_MAX_MIN = 45  # συνολικός χρόνος στο κατώφλι στη σκάλα (το 2024 έφτανε τα 65′, πολύ για την ημέρα πριν το μακρύ)
+
+
+def _ladder(phase: str, k: int, mode: str, scale: float) -> tuple[str, str, str]:
+    """Σκάλα κατωφλίου (Tzanetakis Lab): κομμάτια που μικραίνουν, 1′ χαλαρό ανάμεσα, με στόχο παλμών αντί για ρυθμό."""
+    total = {"base": 30 + 2 * (k // 2), "build": 36 + 2 * (k // 3)}.get(phase, LADDER_MAX_MIN)
+    total = min(LADDER_MAX_MIN, total)
+    if mode == "down":
+        total = round(total * 0.65)
+    total = max(20, round(total * scale))
+    ten = 10 if total >= 38 else 0
+    six = max(1, round((total - ten - 12) / 6))
+    first = "10'+" if ten else ""
+    terr = "σε κυματιστό έδαφος, όπως στον αγώνα" if phase == "specific" else "σε επίπεδο ή ήπιο ανάγλυφο"
+    return (f"Σκάλα κατωφλίου {first}{six}×6'+3×3'+3×1'",
+            f"Ζέσταμα 15 λεπτά με 2 ζωηρά βήματα. {('10 λεπτά, ' if ten else '')}{six}×6 λεπτά, 3×3 λεπτά και 3×1 λεπτό, "
+            f"με 1 λεπτό χαλαρό τρέξιμο ανάμεσα ({'2 λεπτά μετά τα 10′' if ten else 'σε όλα'}), {terr}. "
+            f"Τα μεγάλα κομμάτια λίγο κάτω από το κατώφλι, τα 3′ στο κατώφλι και τα 1′ ζωηρά. Οδηγός οι παλμοί, όχι ο ρυθμός. 10 λεπτά αποψύχρανση.",
+            "Η σκάλα που έκανες με το Tzanetakis Lab το 2024 (25 φορές, σχεδόν όλες ολόκληρες): κομμάτια που μικραίνουν και γίνονται λίγο πιο γρήγορα "
+            "κρατούν πολλή ώρα κοντά στο κατώφλι με σύντομη ανάπαυση. Εδώ έχει όριο 45′ στο κατώφλι (τότε έφτανε 65′, δύο φορές την εβδομάδα) "
+            "και στόχο παλμών, επειδή ο ρυθμός κατωφλίου στο TrainingPeaks ήταν πιο αργός από τον πραγματικό σου.")
 
 
 def _norwegian(n: int, m: int, mode: str, scale: float) -> tuple[str, str, str]:
