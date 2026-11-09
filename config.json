@@ -3,6 +3,28 @@
   "race_date": "2027-06-26",
   "race_km": 44,
   "race_gain": 3350,
+  "race_goal": "06:30",
+  "b_races": [
+    {
+      "date": "2027-04-18",
+      "name": "Plastira Lake Trail",
+      "km": 39,
+      "gain": 2480,
+      "minutes": 290
+    }
+  ],
+  "big_days": [
+    {
+      "date": "2027-05-15",
+      "minutes": 255,
+      "gain": 2200
+    },
+    {
+      "date": "2027-05-29",
+      "minutes": 285,
+      "gain": 2500
+    }
+  ],
   "days_per_week": 5,
   "week_template": [
     "q1",

@@ -280,6 +280,10 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
     skip_growth = status["hold"] and not rec_start and not post_recovery
     in_recovery = post_recovery
 
+    # Αγώνες προετοιμασίας (config.json → b_races) και μεγάλες μέρες στο βουνό (config.json → big_days).
+    b_races = {to_date(r["date"]): r for r in (cfg.get("b_races") or []) if to_date(r["date"]) >= mon0}
+    big_days = {to_date(b["date"]): b for b in (cfg.get("big_days") or [])}
+
     done_by_date: dict[str, dict] = {}
     for a in acts:
         if is_run(a):
@@ -294,6 +298,9 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
         wk = mon0 + timedelta(weeks=i)
         left = (race_mon - wk).days // 7 if race else None
 
+        wk_end = wk + timedelta(days=6)
+        b_race = next(((d0, r) for d0, r in b_races.items() if wk <= d0 <= wk_end), None)
+        after_b = next((d0 for d0 in b_races if wk - timedelta(days=7) <= d0 < wk), None)
         rec_week = bool(rec_start) and sum(
             1 for k in range(7) if rec_start < wk + timedelta(days=k) <= rec_end) >= 4
         if rec_week:
@@ -317,9 +324,12 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 # Η ανάκαμψη τελείωσε νωρίτερα: η πρώτη εβδομάδα είναι ελαφριά επιστροφή και το πρόγραμμα
                 # προχωρά μία εβδομάδα μπροστά, χωρίς δεύτερη αποφόρτιση αμέσως μετά.
                 is_down = i == 0 or (is_down and i > 1)
+            if after_b:
+                is_down = True  # η εβδομάδα μετά από αγώνα προετοιμασίας είναι πάντα ελαφριά
             if is_down:
                 mode = "down"
-                label = "Επιστροφή στην προπόνηση" if (post_recovery and i == 0) else "Αποφόρτιση"
+                label = ("Επιστροφή στην προπόνηση" if (post_recovery and i == 0)
+                         else "Ανάκαμψη μετά τον αγώνα" if after_b else "Αποφόρτιση")
                 wk_km, wk_gain = km_level * 0.7, gain_level * 0.7
             else:
                 mode = "build"
@@ -335,6 +345,8 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 up_count += 1
                 label = pz.PHASE_LABEL[pz.phase_of(left)[0]]
                 wk_km, wk_gain = km_level, gain_level
+            if b_race:
+                label = f"{label} · αγώνας προετοιμασίας"
 
         # Ταβάνι σε χρόνο: ό,τι ώρες την εβδομάδα έχεις ήδη αντέξει (με 5% περιθώριο).
         # Στις εβδομάδες αποφόρτισης και στο taper το ταβάνι μειώνεται αναλογικά, ώστε η μείωση να είναι πραγματική
@@ -435,6 +447,56 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 minutes = 20 if (mode in ("taper", "recovery") or rec_n) else 35
             elif kind == "recover" and rec_n and rec_n <= 7:
                 minutes = 30  # ελαφρύ περπάτημα
+            # Αγώνας προετοιμασίας: ελαφριές οι δύο μέρες πριν, ξεκούραση και κινητικότητα τις δύο μέρες μετά.
+            if b_race and not rec_n:
+                gap = (b_race[0] - d).days
+                r = b_race[1]
+                if gap == 0:
+                    kind, km, gain = "race", float(r.get("km") or 30), int(r.get("gain") or 1500)
+                    minutes = int(r.get("minutes") or 5 * round(effort(km, gain) * pace / 5))
+                    title = f"ΑΓΩΝΑΣ: {r.get('name', 'Αγώνας προετοιμασίας')}"
+                    desc = ("Αγώνας προετοιμασίας για τον " + race_name + ": δοκίμασε τον ρυθμό στις ανηφόρες, τη διατροφή (60–90 g υδατάνθρακες την ώρα), "
+                            "τα μπατόν και τον εξοπλισμό. Τρέξε δυνατά αλλά όχι στο όριο τις πρώτες 2 ώρες.")
+                    why = ("Ένας αγώνας 4–5 ωρών 10 εβδομάδες πριν είναι η καλύτερη πρόβα: ρυθμός, στομάχι και κατηφόρα με κουρασμένα πόδια "
+                           "σε πραγματικές συνθήκες. Η εβδομάδα πριν είναι ελαφριά και η επόμενη ανάκαμψης.")
+                elif gap == 1:
+                    kind, km, gain, minutes = "shakeout", 4.0, 50, 25
+                    title, desc = describe("shakeout", i, mode, left, cfg)
+                    why = None
+                elif gap == 2:
+                    kind, km, gain, minutes = "easy", max(3.0, _r5(40 / pace)), 50, 40
+                    title = "Εύκολο στην άσφαλτο + ζωηρά βήματα"
+                    desc = "40 λεπτά άνετα και 6×20″ ζωηρά βήματα στο τέλος. Τίποτα κουραστικό πριν τον αγώνα."
+                    why = None
+                elif gap == 4 and kind == "mlr":
+                    minutes = min(minutes, 70)
+                    km = max(3.0, _r5(minutes / pace - gain / 100.0))
+                    title = "Medium long 1ώρ 10"
+            if after_b and not rec_n:
+                since = (d - after_b).days
+                if since == 1:
+                    kind, km, gain, minutes = "recover", 0.0, 0, 30
+                    title, desc, why = "Ανάκαμψη μετά τον αγώνα", "Κανένα τρέξιμο: περπάτημα 20–30 λεπτά, νερό, υδατάνθρακες και πρωτεΐνη, ύπνος.", None
+                elif since == 2 and kind == "strength":
+                    title, desc, why, session, minutes = pz.gym("taper", mode)
+                elif since == 3 and kind == "mlr":
+                    kind, minutes, gain = "easy", 45, 50
+                    km = max(3.0, _r5(minutes / pace - gain / 100.0))
+                    title, desc, why = "Εύκολο τρέξιμο", "45 λεπτά άνετα σε επίπεδο. Αν τα πόδια πονούν ακόμα, περπάτησε.", pz.EASY_WHY
+
+            # Μεγάλη μέρα στο βουνό (Απρίλιος–Μάιος): πάνω από το όριο των 2:45, για αντοχή στην κατηφόρα μετά από ώρες.
+            if d in big_days and kind == "long" and not rec_n:
+                b = big_days[d]
+                minutes, gain = int(b.get("minutes") or 270), int(b.get("gain") or 2200)
+                km = max(km, _r5(minutes / pace - gain / 100.0))
+                h, mm = divmod(minutes, 60)
+                title = f"Μακρύ στο βουνό {h}ώρ{f' {mm:02d}' if mm else ''}"
+                desc = (f"Μεγάλη μέρα στο βουνό: {h}ώρ{f' {mm:02d}' if mm else ''} με περίπου +{gain} m, όσο πιο κοντά στο προφίλ του {race_name} "
+                        "(συνεχής ανάβαση πάνω από 1.000 m και μεγάλη τεχνική κατηφόρα). Power hiking με μπατόν στα απότομα, "
+                        "60–90 g υδατάνθρακες την ώρα, ίδιος εξοπλισμός με τον αγώνα. Η κατηφόρα στο τέλος, με κουρασμένα πόδια, είναι το πιο σημαντικό κομμάτι. " + DESCENT_TIP)
+                why = ("Για στόχο κάτω από 6:30 χρειάζεσαι πόδια που αντέχουν την κατηφόρα από το Καταφύγιο Α ως τα Πριόνια μετά από 4 ώρες. "
+                       "Αυτό χτίζεται μόνο με λίγες, αραιές μέρες 4–5 ωρών στο βουνό (Koop, 2016), με ελαφριά μέρα πριν και μετά.")
+
             steps = workouts.build(title, minutes, lthr, hrmax) if (km > 0 and kind != "race") else None
             if steps:
                 minutes = max(minutes, int(round(workouts.total_sec(steps) / 60)))
