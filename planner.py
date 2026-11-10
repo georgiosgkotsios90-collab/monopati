@@ -220,6 +220,10 @@ def describe(kind: str, i: int, mode: str, left: int | None, cfg: dict) -> tuple
 
 
 # --- Το πρόγραμμα ----------------------------------------------------------------
+def light_week_mlr(mode: str, b_race, after_b) -> bool:
+    return mode in ("down", "taper") or bool(b_race) or bool(after_b)
+
+
 def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[dict]) -> list[dict]:
     race = to_date(cfg["race_date"]) if cfg.get("race_date") else None
     if race and race < today:
@@ -301,6 +305,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
         wk_end = wk + timedelta(days=6)
         b_race = next(((d0, r) for d0, r in b_races.items() if wk <= d0 <= wk_end), None)
         after_b = next((d0 for d0 in b_races if wk - timedelta(days=7) <= d0 < wk), None)
+        big_week = any(wk <= b0 <= wk_end for b0 in big_days)
         rec_week = bool(rec_start) and sum(
             1 for k in range(7) if rec_start < wk + timedelta(days=k) <= rec_end) >= 4
         if rec_week:
@@ -433,12 +438,35 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                 minutes = fixed_min
             elif fixed_min:
                 minutes = fixed_min
-            if kind == "quality" and minutes > pz.QUALITY_MAX_MIN:
-                # Διαλειμματικές: έως 1:40 συνολικά. Τα km μειώνονται αναλογικά.
+            light_week = mode in ("down", "taper") or bool(b_race) or bool(after_b)
+            if kind == "quality" and not rec_n and not light_week:
+                # Διαλειμματικές στις κανονικές εβδομάδες: 1:30 ή 1:45, ανάλογα με το πόσο μεγάλο είναι το κυρίως μέρος
+                # (ζέσταμα + κομμάτια + αποψύχρανση). Ο χρόνος που περισσεύει γίνεται εύκολο τρέξιμο μετά τα κομμάτια.
+                need = workouts.total_sec(workouts.build(title, 0, lthr, hrmax) or []) / 60
+                target = pz.QUALITY_MIN_MIN if need <= 75 else pz.QUALITY_MAX_MIN
+                if big_week and dow == 4:
+                    target = pz.QUALITY_MIN_MIN  # την παραμονή της μεγάλης μέρας στο βουνό, στο ελάχιστο
+                if minutes > 0:
+                    km, gain = _r5(km * target / minutes), _r10(gain * target / minutes)
+                minutes = target
+            elif kind == "quality" and minutes > pz.QUALITY_MAX_MIN:
+                # Ελαφριές εβδομάδες: έως 1:45, χωρίς ελάχιστο. Τα km μειώνονται αναλογικά.
                 km, gain = _r5(km * pz.QUALITY_MAX_MIN / minutes), _r10(gain * pz.QUALITY_MAX_MIN / minutes)
                 minutes = pz.QUALITY_MAX_MIN
-            if kind == "long" and minutes > pz.LONG_MAX_MIN:
-                minutes = pz.LONG_MAX_MIN
+            if kind == "long":
+                cap = pz.LONG_MAX_MIN
+                if left is not None and not rec_n and mode != "down":
+                    ph_l, k_l = pz.phase_of(left)
+                    if ph_l == "base":
+                        cap = min(cap, 150 + 10 * k_l)  # σταδιακή άνοδος στη Βάση: 2:30 → 3:00 σε 4 εβδομάδες
+                if minutes > cap:
+                    km, gain = _r5(km * cap / minutes), _r10(gain * cap / minutes)
+                    minutes = cap
+            if kind == "mlr" and big_week and not light_week_mlr(mode, b_race, after_b):
+                minutes = 90  # εβδομάδα με μεγάλη μέρα στο βουνό: το μεσαίο μακρύ στο ελάχιστο
+                km = max(3.0, _r5(minutes / pace - gain / 100.0))
+                title = "Medium long 1ώρ 30"
+                desc = desc.replace(desc.split(" λεπτά")[0], "90", 1)
             if kind == "easy" and not rec_n and not (race and left == 0) and minutes < pz.EASY_MIN_MIN:
                 # Εύκολο τρέξιμο: τουλάχιστον 40 λεπτά (εκτός ανάκαμψης μετά από αγώνα και εβδομάδας αγώνα).
                 minutes = pz.EASY_MIN_MIN
@@ -472,6 +500,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                     minutes = min(minutes, 70)
                     km = max(3.0, _r5(minutes / pace - gain / 100.0))
                     title = "Medium long 1ώρ 10"
+                    desc = desc.replace(desc.split(" λεπτά")[0], str(minutes), 1)
             if after_b and not rec_n:
                 since = (d - after_b).days
                 if since == 1:
@@ -484,7 +513,7 @@ def build_plan(profile: dict, cfg: dict, today: date, status: dict, acts: list[d
                     km = max(3.0, _r5(minutes / pace - gain / 100.0))
                     title, desc, why = "Εύκολο τρέξιμο", "45 λεπτά άνετα σε επίπεδο. Αν τα πόδια πονούν ακόμα, περπάτησε.", pz.EASY_WHY
 
-            # Μεγάλη μέρα στο βουνό (Απρίλιος–Μάιος): πάνω από το όριο των 2:45, για αντοχή στην κατηφόρα μετά από ώρες.
+            # Μεγάλη μέρα στο βουνό (Απρίλιος–Μάιος): πάνω από το όριο των 3:00, για αντοχή στην κατηφόρα μετά από ώρες.
             if d in big_days and kind == "long" and not rec_n:
                 b = big_days[d]
                 minutes, gain = int(b.get("minutes") or 270), int(b.get("gain") or 2200)
